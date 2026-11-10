@@ -72,6 +72,21 @@ SQLite mahalliy ishga tushirish uchun. Ko‘p xodim bir vaqtda ishlaydigan serve
 
 Production uchun `DJANGO_DEBUG=0`, tasodifiy `DJANGO_SECRET_KEY`, `DJANGO_ALLOWED_HOSTS` muhit o‘zgaruvchilarini belgilang; HTTPS talab qilinadi. `collectstatic` bajaring va ishlab chiqarish WSGI serveridan foydalaning.
 
+## Railway’ga joylash
+
+`Dockerfile` Python 3.13, Gunicorn va WhiteNoise bilan ilovani ishga tushiradi. `railway.json` deploydan oldin migratsiyalar va `setup_crm` ni bajaradi. Statik fayllar Docker build vaqtida yig‘iladi. Ilova Railway bergan `PORT` ni tinglaydi; `/health/` ma’lumotlar bazasi ulanishini tekshiradi.
+
+1. Deploy fayllarini GitHub’ga push qiling.
+2. Railway’da `New Project → Deploy from GitHub repo` orqali `qurilishmollari/CRM-qurilish-mollari` va `main` tarmog‘ini tanlang.
+3. Shu loyihaga PostgreSQL servisini qo‘shing.
+4. Django servisi `Variables` bo‘limida `DJANGO_DEBUG=0`, kamida 50 belgili tasodifiy `DJANGO_SECRET_KEY`, `DATABASE_URL=${{Postgres.DATABASE_URL}}` belgilang. PostgreSQL servisining nomi boshqa bo‘lsa, reference nomini moslang.
+5. Deploy qiling, `Networking → Generate Domain` orqali domen yarating. Railway domeni va CSRF manzili avtomatik ruxsatga qo‘shiladi. Custom domen bo‘lsa `DJANGO_ALLOWED_HOSTS` va `DJANGO_CSRF_TRUSTED_ORIGINS` ni moslang.
+6. Railway servisi terminalida bir marta `python manage.py createsuperuser` bajaring. Kerak bo‘lsa `python manage.py seed_products` bilan boshlang‘ich katalogni qo‘shing. Xodimlarni admin panelidan yarating.
+
+Mahalliy `db.sqlite3`, loginlar, narxlar va savdo yozuvlari Docker/GitHub orqali ko‘chirilmaydi: PostgreSQL yangi baza bo‘ladi. Mavjud biznes ma’lumotlarini ko‘chirish kerak bo‘lsa alohida eksport/import qiling. Serverda `admin/123` kabi boshlang‘ich hisob avtomatik yaratilmaydi.
+
+Mahalliy Docker yoki Railway buildi tarmoq va bog‘liqliklar o‘rnatilishini talab qiladi. `DJANGO_DEBUG=0` bo‘lsa `DATABASE_URL` va `DJANGO_SECRET_KEY` shart; SQLite production uchun avtomatik tanlanmaydi. `.env.example` faqat sozlamalar namunasi, Django uni o‘zi o‘qimaydi.
+
 ## Tekshirish
 
 ```powershell
