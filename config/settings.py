@@ -49,6 +49,12 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 LOGIN_URL = 'login'
 LOGIN_REDIRECT_URL = 'dashboard'
 LOGOUT_REDIRECT_URL = 'login'
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {'console': {'class': 'logging.StreamHandler'}},
+    'loggers': {'django': {'handlers': ['console'], 'level': 'INFO', 'propagate': False}},
+}
 if not DEBUG:
     if SECRET_KEY == 'development-only-change-before-deployment':
         raise RuntimeError('DJANGO_SECRET_KEY must be set in production')

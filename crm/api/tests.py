@@ -16,6 +16,17 @@ from django.urls import resolve
 
 
 class ApiDocumentationTests(SimpleTestCase):
+    def test_docs_with_production_static_manifest(self):
+        from tempfile import TemporaryDirectory
+        from django.test import override_settings
+        with TemporaryDirectory() as static_root:
+            with override_settings(DEBUG=False, STATIC_ROOT=static_root, STORAGES={'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage'}, 'staticfiles': {'BACKEND': 'whitenoise.storage.CompressedManifestStaticFilesStorage'}}):
+                call_command('collectstatic', interactive=False, verbosity=0, stdout=StringIO())
+                response = self.client.get('/api/docs/')
+                self.assertEqual(response.status_code, 200)
+                self.assertContains(response, '/static/crm/api_docs.')
+                self.assertEqual(self.client.get('/api/schema/').status_code, 200)
+
     def test_docs_are_public_with_and_without_slash(self):
         for path in ('/api/docs', '/api/docs/'):
             response = self.client.get(path)
