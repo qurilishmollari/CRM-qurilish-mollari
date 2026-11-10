@@ -1,4 +1,20 @@
-document.querySelectorAll('nav a').forEach(link => { if (link.pathname === location.pathname) link.classList.add('active'); });
+document.querySelectorAll('aside nav a').forEach(link => { if (link.pathname === location.pathname) link.classList.add('active'); });
+const selection = document.getElementById('product-selection');
+if (selection) {
+  const boxes = [...selection.querySelectorAll('input[name="products"]')];
+  const all = document.getElementById('select-all-products');
+  function updateSelection() {
+    const count = boxes.filter(box => box.checked).length;
+    document.getElementById('selection-count').textContent = count;
+    document.getElementById('delete-selected').disabled = count === 0;
+    all.checked = boxes.length > 0 && count === boxes.length;
+    all.indeterminate = count > 0 && count < boxes.length;
+    all.disabled = boxes.length === 0;
+  }
+  all.addEventListener('change', () => { boxes.forEach(box => { box.checked = all.checked; }); updateSelection(); });
+  boxes.forEach(box => box.addEventListener('change', updateSelection));
+  updateSelection();
+}
 const lines = document.getElementById('lines');
 if (lines) {
   const prices = JSON.parse(document.getElementById('product-prices').textContent);

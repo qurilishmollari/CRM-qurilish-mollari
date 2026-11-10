@@ -7,10 +7,12 @@ from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
 from django.db import transaction
 from django.db.models import F, Q, Sum
+from django.db.models.deletion import ProtectedError
+from django.views.decorators.http import require_POST
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
-from .forms import DocumentForm, ExpenseForm, LineFormSet, PartnerForm, PaymentForm, ProductForm, WarehouseForm
+from .forms import DocumentForm, ExpenseForm, LineFormSet, PartnerForm, PaymentForm, ProductForm, WarehouseForm, ProductDeleteForm
 from .models import Category, Document, Expense, Partner, Payment, Product, Stock, Warehouse
 from .services import partner_balance, post_document
 from .permissions import allowed_document_kinds, visible_documents
@@ -50,7 +52,7 @@ def listing(request, section):
         title = 'Mijozlar'
     query = request.GET.get('q', '').strip()
     if query:
-        if section == 'products': qs = qs.filter(Q(name__icontains=query) | Q(sku__icontains=query) | Q(barcode__icontains=query))
+        if section == 'products': qs = qs.filter(Q(name__icontains=query) | Q(sku__icontains=query))
         elif section in ('partners', 'warehouses'): qs = qs.filter(name__icontains=query)
         elif section == 'payments': qs = qs.filter(partner__name__icontains=query)
         else: qs = qs.filter(title__icontains=query)
@@ -59,7 +61,38 @@ def listing(request, section):
     for obj in page:
         cells = [getattr(obj, f'get_{field}_display', lambda: getattr(obj, field))() for field in fields]
         rows.append({'id': obj.pk, 'cells': cells})
-    return render(request, 'crm/list.html', {'title': title, 'section': section, 'headers': [model._meta.get_field(f).verbose_name for f in fields], 'rows': rows, 'page': page, 'q': query, 'can_add': request.user.has_perm(f'crm.add_{model._meta.model_name}')})
+    return render(request, 'crm/list.html', {'title': title, 'section': section, 'headers': [model._meta.get_field(f).verbose_name for f in fields], 'rows': rows, 'page': page, 'q': query, 'can_add': request.user.has_perm(f'crm.add_{model._meta.model_name}'), 'can_delete_products': section == 'products' and request.user.has_perm('crm.delete_product')})
+
+
+@login_required
+@permission_required(['crm.view_product', 'crm.delete_product'], raise_exception=True)
+@require_POST
+def products_delete(request):
+    form = ProductDeleteForm(request.POST)
+    if not form.is_valid():
+        messages.error(request, 'O‘chirish uchun ro‘yxatdan tovarlarni tanlang. Tanlov eskirgan bo‘lsa, qayta tanlang.')
+        return redirect('listing', section='products')
+    products = list(form.cleaned_data['products'])
+    if request.POST.get('confirm') != 'yes':
+        deletable, protected = [], []
+        for product in products:
+            target = protected if product.stock_set.exists() or product.documentline_set.exists() else deletable
+            target.append(product)
+        return render(request, 'crm/products_delete.html', {'form': form, 'deletable': deletable, 'protected': protected})
+    deleted, protected_count = 0, 0
+    for product in products:
+        try:
+            with transaction.atomic():
+                product.delete()
+        except ProtectedError:
+            protected_count += 1
+        else:
+            deleted += 1
+    if deleted:
+        messages.success(request, f'{deleted} ta tovar o‘chirildi.')
+    if protected_count:
+        messages.warning(request, f'{protected_count} ta tovar ombor yoki hujjatlarga bog‘langanligi uchun o‘chirilmadi.')
+    return redirect('listing', section='products')
 
 @login_required
 def create(request, section):
@@ -159,11 +192,11 @@ def inventory(request):
 def reports(request):
     today = timezone.localdate()
     period = request.GET.get('period', 'day')
-    if period not in ['day', 'week', 'month', 'all']:
+    if period not in ['day', 'week', 'month', 'year', 'all']:
         period = 'day'
-    start = {'day': today, 'week': today - timedelta(days=today.weekday()), 'month': today.replace(day=1), 'all': None}[period]
-    period_label = {'day': 'Bugun', 'week': 'Shu hafta', 'month': 'Shu oy', 'all': 'Barcha davr'}[period]
-    docs = Document.objects.filter(posted=True, kind__in=['sale', 'return']).prefetch_related('lines')
+    start = {'day': today, 'week': today - timedelta(days=today.weekday()), 'month': today.replace(day=1), 'year': today.replace(month=1, day=1), 'all': None}[period]
+    period_label = {'day': 'Bugun', 'week': 'Shu hafta', 'month': 'Shu oy', 'year': 'Shu yil', 'all': 'Barcha davr'}[period]
+    docs = Document.objects.filter(posted=True, kind__in=['sale', 'return']).select_related('partner', 'warehouse').prefetch_related('lines__product')
     expense_qs = Expense.objects.all()
     payment_qs = Payment.objects.all()
     if start:
@@ -179,4 +212,11 @@ def reports(request):
     incoming = payment_qs.filter(direction='in').aggregate(total=Sum('amount'))['total'] or Decimal('0')
     outgoing = payment_qs.filter(direction='out').aggregate(total=Sum('amount'))['total'] or Decimal('0')
     balances = [{'partner': p, 'balance': partner_balance(p)} for p in Partner.objects.prefetch_related('payment_set')]
-    return render(request, 'crm/reports.html', {'revenue': revenue, 'profit': profit, 'expenses': expenses, 'net': profit - expenses, 'balances': balances, 'period': period, 'period_label': period_label, 'start': start, 'today': today, 'incoming': incoming, 'outgoing': outgoing, 'sale_count': docs.filter(kind='sale').count(), 'return_count': docs.filter(kind='return').count()})
+    context = {'revenue': revenue, 'profit': profit, 'expenses': expenses, 'net': profit - expenses, 'balances': balances, 'period': period, 'period_label': period_label, 'start': start, 'today': today, 'incoming': incoming, 'outgoing': outgoing, 'sale_count': sum(d.kind == 'sale' for d in docs), 'return_count': sum(d.kind == 'return' for d in docs)}
+    if request.GET.get('export') == 'xlsx':
+        from .excel import report_workbook
+        response = HttpResponse(report_workbook(context, docs, payment_qs.select_related('partner'), expense_qs), content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        response['Content-Disposition'] = f'attachment; filename="hisobot-{period}-{today.isoformat()}.xlsx"'
+        response['Cache-Control'] = 'private, no-store'
+        return response
+    return render(request, 'crm/reports.html', context)

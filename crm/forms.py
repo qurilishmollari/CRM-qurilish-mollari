@@ -1,4 +1,5 @@
 from django import forms
+from django.core import signing
 from django.forms import inlineformset_factory
 import re
 from .models import Document, DocumentLine, Expense, Partner, Payment, Product, Warehouse
@@ -57,9 +58,39 @@ class PartnerForm(forms.ModelForm):
         fields = ['name', 'kind', 'phone', 'address', 'notes']
 
 class ProductForm(forms.ModelForm):
+    sku = forms.CharField(label='Artikul', required=False, disabled=True)
+    sku_token = forms.CharField(widget=forms.HiddenInput, required=False)
+
     class Meta:
         model = Product
-        fields = ['name', 'sku', 'barcode', 'category', 'unit', 'purchase_price', 'sale_price', 'minimum_stock', 'active']
+        fields = ['name', 'category', 'unit', 'purchase_price', 'sale_price', 'minimum_stock', 'active']
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._sku_token_error = False
+        if not self.instance.pk:
+            self.fields['sku_token'].required = True
+            if self.is_bound:
+                try:
+                    sku = signing.loads(self.data.get(self.add_prefix('sku_token'), ''), salt='crm.product.sku')
+                    if not isinstance(sku, str) or not re.fullmatch(r'TOV-[0-9A-F]{32}', sku):
+                        raise signing.BadSignature
+                    self.instance.sku = sku
+                except signing.BadSignature:
+                    self._sku_token_error = True
+            else:
+                self.initial['sku_token'] = signing.dumps(self.instance.sku, salt='crm.product.sku')
+        self.initial['sku'] = self.instance.sku
+        self.order_fields(['name', 'sku', 'category', 'unit', 'purchase_price', 'sale_price', 'minimum_stock', 'active', 'sku_token'])
+
+    def clean_sku_token(self):
+        token = self.cleaned_data.get('sku_token', '')
+        if not self.instance.pk:
+            if self._sku_token_error:
+                raise forms.ValidationError('Artikul tasdig‘i noto‘g‘ri. Tovar qo‘shish sahifasini qayta oching.')
+            if Product.objects.filter(sku=self.instance.sku).exists():
+                raise forms.ValidationError('Bu artikul bilan mahsulot saqlangan. Yangi mahsulot uchun sahifani qayta oching.')
+        return token
 
 class PaymentForm(forms.ModelForm):
     class Meta:
@@ -76,3 +107,7 @@ class WarehouseForm(forms.ModelForm):
     class Meta:
         model = Warehouse
         fields = ['name', 'address']
+
+
+class ProductDeleteForm(forms.Form):
+    products = forms.ModelMultipleChoiceField(queryset=Product.objects.all(), label='Tovarlar', widget=forms.MultipleHiddenInput)

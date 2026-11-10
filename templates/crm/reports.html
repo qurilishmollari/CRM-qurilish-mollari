@@ -1,9 +1,10 @@
 {% extends 'crm/base.html' %}{% block content %}
-<div class="page-heading"><div><h1>Moliyaviy hisobotlar</h1><p>{{ period_label }}{% if start %} · {{ start|date:'d.m.Y' }} — {{ today|date:'d.m.Y' }}{% endif %}</p></div></div>
+<div class="page-heading"><div><h1>Moliyaviy hisobotlar</h1><p>{{ period_label }}{% if start %} · {{ start|date:'d.m.Y' }} — {{ today|date:'d.m.Y' }}{% endif %}</p></div><a class="button" href="?period={{ period }}&amp;export=xlsx">↓ Excel yuklab olish (.xlsx)</a></div>
 <nav class="report-periods" aria-label="Hisobot davri">
 <a class="{% if period == 'day' %}active{% endif %}" href="?period=day">Kunlik</a>
 <a class="{% if period == 'week' %}active{% endif %}" href="?period=week">Haftalik</a>
 <a class="{% if period == 'month' %}active{% endif %}" href="?period=month">Oylik</a>
+<a class="{% if period == 'year' %}active{% endif %}" href="?period=year">Yillik</a>
 <a class="{% if period == 'all' %}active{% endif %}" href="?period=all">Barcha davr</a>
 </nav>
 <div class="stats"><article><span>Sof savdo tushumi</span><h2>{{ revenue|floatformat:2 }}</h2><p>Qaytarishlar chegirilgan</p></article><article><span>Yalpi foyda</span><h2>{{ profit|floatformat:2 }}</h2><p>Savdo minus hisobga olingan tannarx</p></article><article><span>Xarajatlar</span><h2>{{ expenses|floatformat:2 }}</h2><p>Tanlangan davr xarajatlari</p></article><article class="accent"><span>Hisobiy sof foyda</span><h2>{{ net|floatformat:2 }}</h2><p>Yalpi foyda minus xarajatlar</p></article></div>

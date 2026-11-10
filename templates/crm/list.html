@@ -1,1 +1,10 @@
-{% extends 'crm/base.html' %}{% block content %}<div class="page-heading"><div><h1>{{ title }}</h1><p>Ma’lumotlarni boshqaring va qidiring.</p></div>{% if can_add %}<a class="button" href="{% url 'create' section %}">+ Yangi qo‘shish</a>{% endif %}</div><section class="panel"><form class="filters" method="get"><input name="q" value="{{ q }}" placeholder="Qidirish…" aria-label="Qidirish"><button>Qidirish</button></form><div class="table-wrap"><table><thead><tr>{% for header in headers %}<th>{{ header }}</th>{% endfor %}</tr></thead><tbody>{% for row in rows %}<tr>{% for cell in row.cells %}<td>{{ cell|default_if_none:'—' }}</td>{% endfor %}</tr>{% empty %}<tr><td colspan="8" class="empty">Ma’lumot topilmadi.</td></tr>{% endfor %}</tbody></table></div>{% include 'crm/pagination.html' %}</section>{% endblock %}
+{% extends 'crm/base.html' %}
+{% block content %}
+<div class="page-heading"><div><h1>{{ title }}</h1><p>Ma’lumotlarni boshqaring va qidiring.</p></div>{% if can_add %}<a class="button" href="{% url 'create' section %}">+ Yangi qo‘shish</a>{% endif %}</div>
+<section class="panel"><form class="filters" method="get"><input name="q" value="{{ q }}" placeholder="Qidirish…" aria-label="Qidirish"><button>Qidirish</button></form>
+{% if can_delete_products %}<form method="post" action="{% url 'products_delete' %}" id="product-selection">{% csrf_token %}
+<div class="bulk-actions"><span aria-live="polite">Tanlangan: <strong id="selection-count">0</strong></span><button type="submit" class="danger" id="delete-selected">Tanlanganlarni o‘chirish</button></div>{% endif %}
+<div class="table-wrap"><table><thead><tr>{% if can_delete_products %}<th><input type="checkbox" id="select-all-products" aria-label="Shu sahifadagi barcha tovarlarni tanlash"></th>{% endif %}{% for header in headers %}<th>{{ header }}</th>{% endfor %}</tr></thead><tbody>
+{% for row in rows %}<tr>{% if can_delete_products %}<td><input type="checkbox" name="products" value="{{ row.id }}" aria-label="{{ row.cells.0 }} tovarini tanlash"></td>{% endif %}{% for cell in row.cells %}<td>{{ cell|default_if_none:'—' }}</td>{% endfor %}</tr>{% empty %}<tr><td colspan="8" class="empty">Ma’lumot topilmadi.</td></tr>{% endfor %}
+</tbody></table></div>{% if can_delete_products %}</form>{% endif %}
+{% include 'crm/pagination.html' %}</section>{% endblock %}

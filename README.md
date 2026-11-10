@@ -22,7 +22,8 @@ Yangi muhit kerak bo‘lsa avval `py -m venv .venv` bajaring. Boshlang‘ich mig
 ## Mavjud imkoniyatlar
 
 - Bosh sahifa: bugungi savdo, mijozlar, tovarlar, kam qoldiq va oxirgi operatsiyalar.
-- Kategoriya, artikul, shtrix-kod, dona/kg/tonna/m/m²/m³/qop, xarid va sotuv narxlari.
+- Kategoriya, artikul, dona/kg/tonna/m/m²/m³/qop, xarid va sotuv narxlari.
+- Yangi tovar formasi ochilishi bilan artikul avtomatik `TOV-…` formatida yaratiladi va faqat ko‘rish uchun chiqariladi. Saqlanganda ham aynan shu artikul qoladi; forma xatolarida ham o‘zgarmaydi. Artikul imzolangan yashirin qiymat bilan tekshiriladi, admin uni qo‘lda yozmaydi. Mavjud artikullar saqlanadi, tovar tahrirlanganda o‘zgarmaydi. Shtrix-kod maydoni olib tashlangan.
 - Mijozlar, yetkazib beruvchilar, telefon, manzil va izohlar.
 - Ko‘p omborli hisob: xarid kirimi, sotuv chiqimi va omborlararo ko‘chirish.
 - Bir hujjatda bir nechta tovar; kasrli miqdorlar; qator qo‘shish.
@@ -33,6 +34,8 @@ Yangi muhit kerak bo‘lsa avval `py -m venv .venv` bajaring. Boshlang‘ich mig
 - Ombor qidiruvi, filtri va CSV eksporti; hujjatni chop etish.
 - Django autentifikatsiyasi, CSRF himoyasi va serverda tekshiriladigan ruxsatlar.
 - Rahbar, sotuvchi, omborchi va hisobchi guruhlari.
+- Yorug‘ / qorong‘u rejim: yuqoridagi tugma bilan almashadi, kirish sahifasida ham mavjud. Tanlov brauzerda saqlanadi; dastlab qurilmaning rang rejimi qo‘llanadi.
+- Tovarlarni belgilab ommaviy o‘chirish: `Tovarlar` sahifasida tovarlarni yoki joriy sahifadagi barchasini tanlang, so‘ng tekshirish sahifasida tasdiqlang. Faqat `view_product` va `delete_product` ruxsatlari bor foydalanuvchilar o‘chira oladi; sotuvchida bu imkoniyat yo‘q. Hujjat yoki ombor hisobida ishlatilgan tovarlar o‘chirilmaydi, hatto qoldig‘i nol bo‘lsa ham. Aralash tanlovda faqat bog‘lanmagan tovarlar o‘chiriladi, saqlanganlari haqida xabar chiqadi.
 
 ## Foydalanish
 
@@ -55,7 +58,9 @@ Sotuvchi qaytarishda ham xaridorning avvalgi xariddagi ismi va telefonini, ombor
 
 ### Davriy hisobotlar
 
-Hisobotlar sahifasida `Kunlik`, `Haftalik`, `Oylik`, `Barcha davr` tugmalari bor. Kunlik — bugun; haftalik — joriy haftaning dushanbasidan bugungacha; oylik — joriy oyning birinchi kunidan bugungacha, Asia/Tashkent bo‘yicha. Tanlangan davrga savdo/qaytarish, tushum, tannarx, xarajat, foyda va to‘lov kirim/chiqimi kiradi. Qarzdorlik jadvali doimo joriy, barcha davr balansidir. Sotuvchi moliyaviy hisobotni ko‘ra olmaydi.
+Hisobotlar sahifasida `Kunlik`, `Haftalik`, `Oylik`, `Yillik`, `Barcha davr` tugmalari bor. Kunlik — bugun; haftalik — joriy haftaning dushanbasidan bugungacha; oylik — joriy oyning birinchi kunidan bugungacha; yillik — 1-yanvardan bugungacha, Asia/Tashkent bo‘yicha. Tanlangan davrga savdo/qaytarish, tushum, tannarx, xarajat, foyda va to‘lov kirim/chiqimi kiradi. Qarzdorlik jadvali doimo joriy, barcha davr balansidir. Sotuvchi moliyaviy hisobotni ko‘ra olmaydi.
+
+Davrni tanlab `Excel yuklab olish (.xlsx)` tugmasini bosing. Haqiqiy Excel faylida 5 ta varaq bor: umumiy ko‘rsatkichlar, tovar qatorlari bo‘yicha savdo va qaytarish, to‘lovlar, xarajatlar va joriy balanslar. Qaytarish summasi va foydasi manfiy yoziladi. Summalar son sifatida, telefon va matnlar formula sifatida bajarilmaydigan matn sifatida saqlanadi. Varaqning birinchi qatori mahkamlangan, filtrlar mavjud. Eksport uchun qo‘shimcha paket kerak emas.
 
 `seed_products` sement M400/M500, ohak, qum, shag‘al, g‘isht, gazoblok, armatura, gipsli suvoq va kafel yelimini yaratadi. Qayta bajarilsa nusxalar yaratmaydi, mavjud narxlarni o‘zgartirmaydi. Yangi mahsulotlarning narxi 0; savdodan oldin admin haqiqiy narxlarni va xarid hujjati orqali qoldiqlarni kiritishi kerak.
 

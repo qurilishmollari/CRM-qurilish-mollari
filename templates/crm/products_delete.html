@@ -1,0 +1,8 @@
+{% extends 'crm/base.html' %}
+{% block content %}
+<div class="page-heading"><div><h1>Tovarlarni o‘chirish</h1><p>Tanlangan tovarlarni tekshiring. Tasdiqlangach o‘chirilgan tovarlarni tiklab bo‘lmaydi.</p></div></div>
+<section class="panel form-panel">
+{% if deletable %}<h3>O‘chiriladigan tovarlar — {{ deletable|length }} ta</h3><ul>{% for product in deletable %}<li>{{ product.name }} · {{ product.sku }}</li>{% endfor %}</ul>{% endif %}
+{% if protected %}<h3>O‘chirilmaydigan tovarlar — {{ protected|length }} ta</h3><p class="muted">Bu tovarlar ombor yoki hujjatlar hisobida ishlatilgan. Tarix va qoldiqlar saqlanadi.</p><ul>{% for product in protected %}<li>{{ product.name }} · {{ product.sku }}</li>{% endfor %}</ul>{% endif %}
+<form method="post" action="{% url 'products_delete' %}">{% csrf_token %}{{ form.products }}<input type="hidden" name="confirm" value="yes"><div class="form-actions">{% if deletable %}<button class="danger" type="submit">{{ deletable|length }} ta tovarni o‘chirishni tasdiqlash</button>{% endif %}<a href="{% url 'listing' 'products' %}">Bekor qilish va ro‘yxatga qaytish</a></div></form>
+</section>{% endblock %}

@@ -1,4 +1,5 @@
 from django.contrib import admin
+from .forms import ProductForm
 from .models import Category, Document, DocumentLine, Expense, Partner, Payment, Product, Stock, Warehouse
 
 admin.site.site_header = 'Qurilish CRM boshqaruvi'
@@ -6,8 +7,10 @@ admin.site.site_title = 'Qurilish CRM'
 
 @admin.register(Product)
 class ProductAdmin(admin.ModelAdmin):
+    form = ProductForm
+    readonly_fields = ['sku']
     list_display = ['name', 'sku', 'category', 'unit', 'sale_price', 'active']
-    search_fields = ['name', 'sku', 'barcode']
+    search_fields = ['name', 'sku']
     list_filter = ['category', 'active']
 
 @admin.register(Partner)

@@ -216,6 +216,131 @@ class SellerRoleTests(BusinessFixtures):
         self.assertFalse(Partner.objects.filter(name='Hidden supplier').exists())
 
 
+class ProductSkuTests(BusinessFixtures):
+    def test_new_products_receive_unique_skus_and_keep_them_on_edit(self):
+        first = Product.objects.create(name='Ohak', category=self.product.category)
+        second = Product.objects.create(name='Qum', category=self.product.category)
+        self.assertRegex(first.sku, r'^TOV-[0-9A-F]{32}$')
+        self.assertNotEqual(first.sku, second.sku)
+        original = first.sku
+        first.name = 'Ohak yangi'
+        first.save()
+        first.refresh_from_db()
+        self.assertEqual(first.sku, original)
+        self.product.save()
+        self.product.refresh_from_db()
+        self.assertEqual(self.product.sku, 'C01')
+
+    def test_crm_and_admin_create_without_manual_sku(self):
+        self.client.force_login(self.user)
+        data = {'name': 'Yangi tovar', 'category': self.product.category_id, 'unit': 'dona', 'purchase_price': '100', 'sale_price': '150', 'minimum_stock': '0', 'active': 'on', 'sku': 'MANUAL'}
+        response = self.client.get(reverse('create', args=['products']))
+        self.assertContains(response, 'name="sku"')
+        self.assertTrue(response.context['form'].fields['sku'].disabled)
+        self.assertNotContains(response, 'name="barcode"')
+        for url, name in [(reverse('create', args=['products']), 'CRM tovar'), (reverse('admin:crm_product_add'), 'Admin tovar')]:
+            with self.subTest(url=url):
+                page = self.client.get(url)
+                form = page.context['form'] if 'form' in page.context else page.context['adminform'].form
+                shown_sku = form.instance.sku
+                response = self.client.post(url, {**data, 'name': name, 'sku_token': form['sku_token'].value()})
+                self.assertEqual(response.status_code, 302)
+                product = Product.objects.get(name=name)
+                self.assertRegex(product.sku, r'^TOV-[0-9A-F]{32}$')
+                self.assertNotEqual(product.sku, 'MANUAL')
+                self.assertEqual(product.sku, shown_sku)
+
+    def test_preview_sku_survives_validation_error_and_rejects_forgery(self):
+        from .forms import ProductForm
+        preview = ProductForm()
+        self.assertRegex(preview['sku'].value(), r'^TOV-[0-9A-F]{32}$')
+        data = {'sku_token': preview['sku_token'].value(), 'category': self.product.category_id, 'unit': 'dona', 'purchase_price': '100', 'sale_price': '150', 'minimum_stock': '0'}
+        invalid = ProductForm(data)
+        self.assertFalse(invalid.is_valid())
+        self.assertEqual(invalid['sku'].value(), preview['sku'].value())
+        valid = ProductForm({**data, 'name': 'Tovar'})
+        self.assertTrue(valid.is_valid(), valid.errors)
+        self.assertEqual(valid.save().sku, preview['sku'].value())
+        duplicate = ProductForm({**data, 'name': 'Takroriy tovar'})
+        self.assertFalse(duplicate.is_valid())
+        self.assertIn('sku_token', duplicate.errors)
+        forged = ProductForm({**data, 'name': 'Tovar', 'sku_token': 'MANUAL'})
+        self.assertFalse(forged.is_valid())
+        self.assertIn('sku_token', forged.errors)
+
+    def test_product_form_displays_existing_sku_without_allowing_changes(self):
+        from .forms import ProductForm
+        form = ProductForm(instance=self.product)
+        self.assertEqual(form['sku'].value(), 'C01')
+        self.assertTrue(form.fields['sku'].disabled)
+        self.assertNotIn('barcode', form.fields)
+        self.client.force_login(self.user)
+        response = self.client.get(reverse('admin:crm_product_add'))
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, 'name="barcode"')
+        self.assertNotContains(response, 'name="sku"')
+
+
+class ProductDeleteTests(BusinessFixtures):
+    def setUp(self):
+        super().setUp()
+        self.client.force_login(self.user)
+        self.unused = Product.objects.create(name='Keraksiz tovar', category=self.product.category)
+
+    def test_selection_preview_does_not_delete(self):
+        response = self.client.get(reverse('listing', args=['products']))
+        self.assertContains(response, 'select-all-products')
+        response = self.client.post(reverse('products_delete'), {'products': [self.unused.pk]})
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'O‘chiriladigan tovarlar')
+        self.assertTrue(Product.objects.filter(pk=self.unused.pk).exists())
+
+    def test_only_selected_unused_products_are_deleted(self):
+        response = self.client.post(reverse('products_delete'), {'products': [self.unused.pk], 'confirm': 'yes'})
+        self.assertRedirects(response, reverse('listing', args=['products']))
+        self.assertFalse(Product.objects.filter(pk=self.unused.pk).exists())
+        self.assertTrue(Product.objects.filter(pk=self.product.pk).exists())
+
+    def test_mixed_selection_preserves_history_and_stock(self):
+        purchase = self.purchase()
+        response = self.client.post(reverse('products_delete'), {'products': [self.unused.pk, self.product.pk]})
+        self.assertEqual(list(response.context['deletable']), [self.unused])
+        self.assertEqual(list(response.context['protected']), [self.product])
+        response = self.client.post(reverse('products_delete'), {'products': [self.unused.pk, self.product.pk], 'confirm': 'yes'}, follow=True)
+        self.assertContains(response, '1 ta tovar o‘chirildi')
+        self.assertContains(response, '1 ta tovar ombor yoki hujjatlarga')
+        self.assertFalse(Product.objects.filter(pk=self.unused.pk).exists())
+        self.assertTrue(Document.objects.filter(pk=purchase.pk).exists())
+        self.assertEqual(Stock.objects.get(product=self.product).quantity, 10)
+
+    def test_new_reference_after_preview_is_still_protected(self):
+        self.client.post(reverse('products_delete'), {'products': [self.product.pk]})
+        self.purchase()
+        self.client.post(reverse('products_delete'), {'products': [self.product.pk], 'confirm': 'yes'})
+        self.assertTrue(Product.objects.filter(pk=self.product.pk).exists())
+
+    def test_invalid_selection_and_get_never_delete(self):
+        self.assertEqual(self.client.get(reverse('products_delete')).status_code, 405)
+        for ids in [[], ['invalid'], [999999999]]:
+            response = self.client.post(reverse('products_delete'), {'products': ids, 'confirm': 'yes'})
+            self.assertEqual(response.status_code, 302)
+        self.assertEqual(Product.objects.count(), 2)
+
+    def test_seller_cannot_delete_and_csrf_is_required(self):
+        call_command('setup_crm', stdout=StringIO())
+        seller = User.objects.create_user('seller-delete-test', password='test-password-123')
+        seller.groups.add(Group.objects.get(name='Sotuvchi'))
+        self.client.force_login(seller)
+        response = self.client.get(reverse('listing', args=['products']))
+        self.assertNotContains(response, 'select-all-products')
+        self.assertEqual(self.client.post(reverse('products_delete'), {'products': [self.unused.pk], 'confirm': 'yes'}).status_code, 403)
+        from django.test import Client
+        csrf_client = Client(enforce_csrf_checks=True)
+        csrf_client.force_login(self.user)
+        self.assertEqual(csrf_client.post(reverse('products_delete'), {'products': [self.unused.pk], 'confirm': 'yes'}).status_code, 403)
+        self.assertTrue(Product.objects.filter(pk=self.unused.pk).exists())
+
+
 class CatalogSeedTests(TestCase):
     def test_catalog_is_repeatable_and_does_not_overwrite_prices(self):
         call_command('seed_products', stdout=StringIO())
@@ -238,7 +363,7 @@ class PeriodReportTests(BusinessFixtures):
         from django.utils import timezone
         from .models import Expense
         self.client.force_login(self.user)
-        dates = ['2026-11-18', '2026-11-16', '2026-11-15', '2026-10-31', '2026-11-19']
+        dates = ['2026-11-18', '2026-11-16', '2026-11-15', '2026-10-31', '2026-11-19', '2025-12-31']
         for day in dates:
             doc = self.document('sale', 1, 100, partner=self.customer)
             stamp = timezone.make_aware(datetime.fromisoformat(day + 'T12:00:00'))
@@ -248,7 +373,7 @@ class PeriodReportTests(BusinessFixtures):
             payment = Payment.objects.create(partner=self.customer, direction='in', amount=10, created_by=self.user)
             Payment.objects.filter(pk=payment.pk).update(created_at=stamp)
         with patch('crm.views.timezone.localdate', return_value=date(2026, 11, 18)):
-            for period, count in [('day', 1), ('week', 2), ('month', 3), ('all', 5)]:
+            for period, count in [('day', 1), ('week', 2), ('month', 3), ('year', 4), ('all', 6)]:
                 with self.subTest(period=period):
                     response = self.client.get(reverse('reports'), {'period': period})
                     self.assertEqual(response.status_code, 200)
@@ -271,3 +396,69 @@ class PeriodReportTests(BusinessFixtures):
         self.assertEqual(response.context['revenue'], Decimal('120000'))
         self.assertEqual(response.context['profit'], Decimal('40000'))
         self.assertEqual(response.context['return_count'], 1)
+
+
+class ExcelReportTests(BusinessFixtures):
+    def test_exports_match_screen_for_every_period(self):
+        from zipfile import ZipFile
+        from xml.etree import ElementTree as ET
+        from io import BytesIO
+        from django.utils import timezone
+        from .models import Expense
+        self.purchase()
+        self.customer.name = '=HYPERLINK("https://example.com")'
+        self.customer.save()
+        sale = self.document('sale', 3, 60000, partner=self.customer)
+        post_document(sale.pk)
+        returned = self.document('return', 1, 60000, partner=self.customer)
+        post_document(returned.pk)
+        Expense.objects.create(title='Transport', date=timezone.localdate(), amount=5000, created_by=self.user)
+        Payment.objects.create(partner=self.customer, direction='in', amount=100000, created_by=self.user)
+        self.client.force_login(self.user)
+        ns = {'s': 'http://schemas.openxmlformats.org/spreadsheetml/2006/main'}
+        for period in ['day', 'week', 'month', 'year', 'all']:
+            with self.subTest(period=period):
+                screen = self.client.get(reverse('reports'), {'period': period})
+                response = self.client.get(reverse('reports'), {'period': period, 'export': 'xlsx'})
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(response['Content-Type'], 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+                self.assertIn(f'hisobot-{period}-', response['Content-Disposition'])
+                with ZipFile(BytesIO(response.content)) as archive:
+                    self.assertIsNone(archive.testzip())
+                    for path in archive.namelist():
+                        if path.endswith(('.xml', '.rels')):
+                            ET.fromstring(archive.read(path))
+                    workbook = ET.fromstring(archive.read('xl/workbook.xml'))
+                    self.assertEqual(len(workbook.find('s:sheets', ns)), 5)
+                    sheet = ET.fromstring(archive.read('xl/worksheets/sheet1.xml'))
+                    values = {}
+                    for row in sheet.findall('s:sheetData/s:row', ns)[1:]:
+                        cells = list(row)
+                        key = cells[0].find('s:is/s:t', ns).text
+                        value = cells[1].find('s:v', ns)
+                        if value is not None:
+                            values[key] = Decimal(value.text)
+                    self.assertEqual(values['Sof savdo tushumi'], screen.context['revenue'])
+                    self.assertEqual(values['Hisobiy sof foyda'], screen.context['net'])
+                    self.assertEqual(values['To‘lov kirimi'], screen.context['incoming'])
+                    sales = ET.fromstring(archive.read('xl/worksheets/sheet2.xml'))
+                    self.assertEqual(len(sales.findall('s:sheetData/s:row', ns)), 3)
+                    self.assertEqual(sales.findall('.//s:f', ns), [])
+                    text = [n.text for n in sales.findall('.//s:t', ns)]
+                    self.assertIn(self.customer.name, text)
+                    numbers = [Decimal(n.text) for n in sales.findall('.//s:v', ns)]
+                    self.assertIn(Decimal('-60000'), numbers)
+
+    def test_empty_export_and_seller_permission(self):
+        from zipfile import ZipFile
+        from io import BytesIO
+        self.client.force_login(self.user)
+        response = self.client.get(reverse('reports'), {'period': 'year', 'export': 'xlsx'})
+        self.assertEqual(response.status_code, 200)
+        with ZipFile(BytesIO(response.content)) as archive:
+            self.assertIsNone(archive.testzip())
+        call_command('setup_crm', stdout=StringIO())
+        seller = User.objects.create_user('export-seller', password='test-password-123')
+        seller.groups.add(Group.objects.get(name='Sotuvchi'))
+        self.client.force_login(seller)
+        self.assertEqual(self.client.get(reverse('reports'), {'period': 'year', 'export': 'xlsx'}).status_code, 403)

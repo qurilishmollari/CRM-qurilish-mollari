@@ -1,4 +1,5 @@
 from decimal import Decimal
+from uuid import uuid4
 from django.conf import settings
 from django.core.validators import MinValueValidator
 from django.db import models
@@ -6,6 +7,10 @@ from django.db.models import Q
 
 POSITIVE = MinValueValidator(Decimal('0.001'))
 MONEY = MinValueValidator(Decimal('0'))
+
+
+def generate_product_sku():
+    return f'TOV-{uuid4().hex.upper()}'
 
 class Category(models.Model):
     name = models.CharField('Nomi', max_length=120, unique=True)
@@ -48,8 +53,7 @@ class Product(models.Model):
         M3 = 'm3', 'Kub metr'
         BAG = 'qop', 'Qop'
     name = models.CharField('Tovar nomi', max_length=180)
-    sku = models.CharField('Artikul', max_length=60, unique=True)
-    barcode = models.CharField('Shtrix-kod', max_length=80, blank=True)
+    sku = models.CharField('Artikul', max_length=60, unique=True, default=generate_product_sku, editable=False)
     category = models.ForeignKey(Category, verbose_name='Kategoriya', on_delete=models.PROTECT)
     unit = models.CharField('O‘lchov', max_length=10, choices=Unit.choices, default=Unit.PIECE)
     purchase_price = models.DecimalField('Xarid narxi', max_digits=18, decimal_places=2, validators=[MONEY], default=0)
