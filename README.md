@@ -72,6 +72,10 @@ SQLite mahalliy ishga tushirish uchun. Ko‘p xodim bir vaqtda ishlaydigan serve
 
 Production uchun `DJANGO_DEBUG=0`, tasodifiy `DJANGO_SECRET_KEY`, `DJANGO_ALLOWED_HOSTS` muhit o‘zgaruvchilarini belgilang; HTTPS talab qilinadi. `collectstatic` bajaring va ishlab chiqarish WSGI serveridan foydalaning.
 
+## Mobil API
+
+API bazasi: `/api/v1/`. Token bilan kirish, katalog va qoldiqlar, mijozlar, hujjatlar, to‘lovlar, xarajatlar, JSON/Excel hisobotlari mavjud. Rol ruxsatlari tekshiriladi, sotuv/qaytarish so‘rovlarida UUID orqali takroriy yozuvdan himoya bor. Endpointlar, JSON misollar va mobil integratsiya yo‘riqnomasi: [docs/MOBILE_API.md](docs/MOBILE_API.md).
+
 ## Railway’ga joylash
 
 `Dockerfile` Python 3.13, Gunicorn va WhiteNoise bilan ilovani ishga tushiradi. `railway.json` deploydan oldin migratsiyalar va `setup_crm` ni bajaradi. Statik fayllar Docker build vaqtida yig‘iladi. Ilova Railway bergan `PORT` ni tinglaydi; `/health/` ma’lumotlar bazasi ulanishini tekshiradi.

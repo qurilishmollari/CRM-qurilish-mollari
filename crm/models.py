@@ -86,6 +86,8 @@ class Document(models.Model):
     partner = models.ForeignKey(Partner, verbose_name='Hamkor', on_delete=models.PROTECT, blank=True, null=True)
     buyer_name = models.CharField('Xaridor ismi', max_length=180, blank=True)
     buyer_phone = models.CharField('Telefon raqami', max_length=40, blank=True)
+    api_request_id = models.UUIDField(unique=True, null=True, blank=True, editable=False)
+    api_request_hash = models.CharField(max_length=64, blank=True, editable=False)
     warehouse = models.ForeignKey(Warehouse, verbose_name='Ombor', on_delete=models.PROTECT, related_name='documents')
     destination = models.ForeignKey(Warehouse, verbose_name='Qabul qiluvchi ombor', on_delete=models.PROTECT, related_name='incoming_documents', blank=True, null=True)
     original = models.ForeignKey('self', verbose_name='Asl sotuv', on_delete=models.PROTECT, blank=True, null=True)

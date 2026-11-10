@@ -1,5 +1,4 @@
 import csv
-from datetime import timedelta
 from decimal import Decimal
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required, permission_required
@@ -14,7 +13,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from .forms import DocumentForm, ExpenseForm, LineFormSet, PartnerForm, PaymentForm, ProductForm, WarehouseForm, ProductDeleteForm
 from .models import Category, Document, Expense, Partner, Payment, Product, Stock, Warehouse
-from .services import partner_balance, post_document
+from .services import post_document
 from .permissions import allowed_document_kinds, visible_documents
 
 @login_required
@@ -190,33 +189,12 @@ def inventory(request):
 @login_required
 @permission_required(['crm.view_document', 'crm.view_payment', 'crm.view_expense', 'crm.view_partner'], raise_exception=True)
 def reports(request):
-    today = timezone.localdate()
-    period = request.GET.get('period', 'day')
-    if period not in ['day', 'week', 'month', 'year', 'all']:
-        period = 'day'
-    start = {'day': today, 'week': today - timedelta(days=today.weekday()), 'month': today.replace(day=1), 'year': today.replace(month=1, day=1), 'all': None}[period]
-    period_label = {'day': 'Bugun', 'week': 'Shu hafta', 'month': 'Shu oy', 'year': 'Shu yil', 'all': 'Barcha davr'}[period]
-    docs = Document.objects.filter(posted=True, kind__in=['sale', 'return']).select_related('partner', 'warehouse').prefetch_related('lines__product')
-    expense_qs = Expense.objects.all()
-    payment_qs = Payment.objects.all()
-    if start:
-        docs = docs.filter(created_at__date__range=(start, today))
-        expense_qs = expense_qs.filter(date__range=(start, today))
-        payment_qs = payment_qs.filter(created_at__date__range=(start, today))
-    revenue, profit = Decimal('0'), Decimal('0')
-    for doc in docs:
-        sign = -1 if doc.kind == 'return' else 1
-        revenue += sign * doc.total
-        profit += sign * sum(((l.price - l.cost) * l.quantity for l in doc.lines.all()), Decimal('0'))
-    expenses = expense_qs.aggregate(total=Sum('amount'))['total'] or Decimal('0')
-    incoming = payment_qs.filter(direction='in').aggregate(total=Sum('amount'))['total'] or Decimal('0')
-    outgoing = payment_qs.filter(direction='out').aggregate(total=Sum('amount'))['total'] or Decimal('0')
-    balances = [{'partner': p, 'balance': partner_balance(p)} for p in Partner.objects.prefetch_related('payment_set')]
-    context = {'revenue': revenue, 'profit': profit, 'expenses': expenses, 'net': profit - expenses, 'balances': balances, 'period': period, 'period_label': period_label, 'start': start, 'today': today, 'incoming': incoming, 'outgoing': outgoing, 'sale_count': sum(d.kind == 'sale' for d in docs), 'return_count': sum(d.kind == 'return' for d in docs)}
+    from .reporting import build_report
+    context, docs, payment_qs, expense_qs = build_report(request.GET.get('period', 'day'))
     if request.GET.get('export') == 'xlsx':
         from .excel import report_workbook
         response = HttpResponse(report_workbook(context, docs, payment_qs.select_related('partner'), expense_qs), content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
-        response['Content-Disposition'] = f'attachment; filename="hisobot-{period}-{today.isoformat()}.xlsx"'
+        response['Content-Disposition'] = f'attachment; filename="hisobot-{context["period"]}-{context["today"].isoformat()}.xlsx"'
         response['Cache-Control'] = 'private, no-store'
         return response
     return render(request, 'crm/reports.html', context)
