@@ -1,0 +1,9 @@
+{% load static %}
+<!doctype html><html lang="uz"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>API hujjatlari · Qurilish CRM</title><script src="{% static 'crm/theme.js' %}"></script><link rel="stylesheet" href="{% static 'crm/style.css' %}"><link rel="stylesheet" href="{% static 'crm/theme.css' %}"><link rel="stylesheet" href="{% static 'crm/api_docs.css' %}"></head>
+<body class="api-docs"><main>
+<div class="page-heading"><div><p class="eyebrow">QURILISH CRM · API V1</p><h1>API hujjatlari</h1><p>Mobil ilova uchun endpointlar va interaktiv so‘rovlar.</p></div>{% include 'crm/theme_toggle.html' %}</div>
+<section class="panel form-panel"><p>Asosiy yo‘l: <code>/api/v1/</code> · <a href="{% url 'api_schema' %}" target="_blank" rel="noopener">OpenAPI JSON</a> · <a href="{% url 'dashboard' %}">CRM sahifasi</a></p><p class="muted">Hujjatlar ochiq. Ma’lumotlarni olish va o‘zgartirish token va tegishli rolni talab qiladi. So‘rovlar haqiqiy bazada bajariladi.</p><div class="field"><label for="api-token">Token (faqat shu sahifa ochiq turguncha saqlanadi)</label><div class="token-row"><input type="password" id="api-token" autocomplete="off" placeholder="Login orqali token oling yoki tokenni kiriting"><button type="button" id="clear-api-token" class="secondary">Tozalash</button></div></div><p class="muted">Kirish bo‘limidagi POST orqali username/parol yuboring — token avtomatik qo‘llanadi. Token 7 kun amal qiladi. Pul va miqdorlar JSON string ko‘rinishida.</p></section>
+<div id="api-endpoints"></div>
+<p class="muted">Sotuvchida faqat sotuv/qaytarish, mijozlar, katalog va qoldiqlar mavjud. Admin huquqlari talab qilinadigan so‘rovlar sotuvchiga 403 qaytaradi. Takroriy sotuvda o‘sha client_request_id va JSON ni saqlang.</p>
+{{ endpoints|json_script:'api-endpoint-data' }}
+</main><script src="{% static 'crm/api_docs.js' %}"></script></body></html>

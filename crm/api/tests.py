@@ -11,6 +11,37 @@ from rest_framework.test import APIClient
 from crm.models import Document, Partner, Product, Stock
 from crm.services import post_document
 from crm.tests import BusinessFixtures
+from django.test import SimpleTestCase
+from django.urls import resolve
+
+
+class ApiDocumentationTests(SimpleTestCase):
+    def test_docs_are_public_with_and_without_slash(self):
+        for path in ('/api/docs', '/api/docs/'):
+            response = self.client.get(path)
+            self.assertEqual(response.status_code, 200)
+            self.assertContains(response, 'API hujjatlari')
+            self.assertContains(response, 'api-endpoint-data')
+            self.assertContains(response, 'api_docs.js')
+            self.assertNotIn('Location', response)
+        self.assertEqual(self.client.post('/api/docs/').status_code, 405)
+
+    def test_openapi_contract_points_to_real_routes_and_methods(self):
+        response = self.client.get('/api/schema/')
+        self.assertEqual(response.status_code, 200)
+        schema = response.json()
+        self.assertEqual(schema['openapi'], '3.0.3')
+        self.assertEqual(schema['servers'][0]['url'], '/api/v1')
+        self.assertEqual(schema['paths']['/auth/login/']['post']['security'], [])
+        self.assertEqual(schema['paths']['/products/']['get']['security'], [{'TokenAuth': []}])
+        for path, operations in schema['paths'].items():
+            callback = resolve('/api/v1' + path.replace('{id}', '1')).func
+            for method in operations:
+                with self.subTest(path=path, method=method):
+                    if hasattr(callback, 'actions'):
+                        self.assertIn(method, callback.actions)
+                    else:
+                        self.assertTrue(hasattr(callback.view_class, method))
 
 
 class MobileApiTests(BusinessFixtures):

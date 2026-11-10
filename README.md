@@ -74,7 +74,7 @@ Production uchun `DJANGO_DEBUG=0`, tasodifiy `DJANGO_SECRET_KEY`, `DJANGO_ALLOWE
 
 ## Mobil API
 
-API bazasi: `/api/v1/`. Token bilan kirish, katalog va qoldiqlar, mijozlar, hujjatlar, to‘lovlar, xarajatlar, JSON/Excel hisobotlari mavjud. Rol ruxsatlari tekshiriladi, sotuv/qaytarish so‘rovlarida UUID orqali takroriy yozuvdan himoya bor. Endpointlar, JSON misollar va mobil integratsiya yo‘riqnomasi: [docs/MOBILE_API.md](docs/MOBILE_API.md).
+API bazasi: `/api/v1/`. Brauzerda ko‘rish va sinash: `/api/docs/`; OpenAPI JSON: `/api/schema/`. Token bilan kirish, katalog va qoldiqlar, mijozlar, hujjatlar, to‘lovlar, xarajatlar, JSON/Excel hisobotlari mavjud. Rol ruxsatlari tekshiriladi, sotuv/qaytarish so‘rovlarida UUID orqali takroriy yozuvdan himoya bor. Endpointlar, JSON misollar va mobil integratsiya yo‘riqnomasi: [docs/MOBILE_API.md](docs/MOBILE_API.md).
 
 ## Railway’ga joylash
 

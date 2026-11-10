@@ -8,6 +8,8 @@ https://crm-qurilish-mollari-production.up.railway.app/api/v1/
 
 Mahalliy sinov: `http://127.0.0.1:8000/api/v1/`. Barcha manzillarning oxirida `/` bor. API JSON qabul qiladi va qaytaradi. Excel eksporti bundan mustasno. Veb-sayt login cookie-si API uchun ishlamaydi. Serverga yangi kod deploy qilinmaguncha bu endpointlar jonli saytda mavjud bo‘lmaydi.
 
+Brauzerda interaktiv hujjatlar: `/api/docs/` (`/api/docs` ham ishlaydi). OpenAPI 3.0 JSON: `/api/schema/`. Hujjatlarni ko‘rish uchun login kerak emas; haqiqiy ma’lumot so‘rovlari token/ruxsat talab qiladi. Kirish endpointidan token avtomatik olinib faqat sahifa xotirasida saqlanadi. So‘rov tanasini va query parametrlarini tahrirlab sinash, Excel yuklash mumkin. Yozish/o‘chirish amallari haqiqiy bazaga ta’sir qiladi va tasdiqlash so‘raydi. Hujjat yaratish uchun yangi UUID tugmasini faqat yangi operatsiya boshlaganda bosing; retry paytida o‘zgartirmang. UI qo‘shimcha CDN/paketlarsiz ishlaydi.
+
 ## Kirish
 
 `POST auth/login/`
