@@ -1,5 +1,6 @@
 import os
 from pathlib import Path
+from .origins import trusted_origins
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 ON_RAILWAY = bool(os.environ.get('RAILWAY_ENVIRONMENT_ID'))
@@ -10,9 +11,7 @@ RAILWAY_DOMAIN = os.environ.get('RAILWAY_PUBLIC_DOMAIN', '').strip()
 if RAILWAY_DOMAIN:
     ALLOWED_HOSTS.append(RAILWAY_DOMAIN)
 ALLOWED_HOSTS.append('healthcheck.railway.app')
-CSRF_TRUSTED_ORIGINS = [origin.strip() for origin in os.environ.get('DJANGO_CSRF_TRUSTED_ORIGINS', '').split(',') if origin.strip()]
-if RAILWAY_DOMAIN:
-    CSRF_TRUSTED_ORIGINS.append(f'https://{RAILWAY_DOMAIN}')
+CSRF_TRUSTED_ORIGINS = trusted_origins(os.environ.get('DJANGO_CSRF_TRUSTED_ORIGINS', ''), RAILWAY_DOMAIN)
 INSTALLED_APPS = ['django.contrib.admin', 'django.contrib.auth', 'django.contrib.contenttypes', 'django.contrib.sessions', 'django.contrib.messages', 'django.contrib.staticfiles', 'crm']
 INSTALLED_APPS += ['rest_framework', 'rest_framework.authtoken']
 REST_FRAMEWORK = {

@@ -85,6 +85,8 @@ API bazasi: `/api/v1/`. Brauzerda ko‘rish va sinash: `/api/docs/`; OpenAPI JSO
 3. Shu loyihaga PostgreSQL servisini qo‘shing.
 4. Django servisi `Variables` bo‘limida `DJANGO_DEBUG=0`, kamida 50 belgili tasodifiy `DJANGO_SECRET_KEY`, `DATABASE_URL=${{Postgres.DATABASE_URL}}` belgilang. PostgreSQL servisining nomi boshqa bo‘lsa, reference nomini moslang.
 5. Deploy qiling, `Networking → Generate Domain` orqali domen yarating. Railway domeni va CSRF manzili avtomatik ruxsatga qo‘shiladi. Custom domen bo‘lsa `DJANGO_ALLOWED_HOSTS` va `DJANGO_CSRF_TRUSTED_ORIGINS` ni moslang.
+
+`DJANGO_CSRF_TRUSTED_ORIGINS` qiymatiga oddiy domen yozilsa, tizim `https://` ni avtomatik qo‘shadi. Masalan `crm-qurilish-mollari-production.up.railway.app` → `https://crm-qurilish-mollari-production.up.railway.app`. To‘liq `http://` yoki `https://` manzillar saqlanadi; ortiqcha bo‘shliqlar, oxirgi `/` va takrorlar tozalanadi. Yo‘l, login/parol yoki query kiritish qabul qilinmaydi. CSRF tekshiruvi o‘chirilmaydi.
 6. Railway servisi terminalida bir marta `python manage.py createsuperuser` bajaring. Kerak bo‘lsa `python manage.py seed_products` bilan boshlang‘ich katalogni qo‘shing. Xodimlarni admin panelidan yarating.
 
 Mahalliy `db.sqlite3`, loginlar, narxlar va savdo yozuvlari Docker/GitHub orqali ko‘chirilmaydi: PostgreSQL yangi baza bo‘ladi. Mavjud biznes ma’lumotlarini ko‘chirish kerak bo‘lsa alohida eksport/import qiling. Serverda `admin/123` kabi boshlang‘ich hisob avtomatik yaratilmaydi.

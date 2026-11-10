@@ -45,6 +45,30 @@ class DeploymentSettingsTests(SimpleTestCase):
         with self.assertRaisesRegex(RuntimeError, 'DJANGO_SECRET_KEY'):
             self.settings(DJANGO_DEBUG='0', DATABASE_URL='postgresql://user:pass@database/crm')
 
+    def test_bare_railway_csrf_domain_is_normalized(self):
+        domain = 'crm-qurilish-mollari-production.up.railway.app'
+        settings = self.settings(DJANGO_CSRF_TRUSTED_ORIGINS=domain, RAILWAY_PUBLIC_DOMAIN=domain)
+        self.assertEqual(settings.CSRF_TRUSTED_ORIGINS, [f'https://{domain}'])
+        from django.core.checks import run_checks
+        from django.test import override_settings
+        with override_settings(CSRF_TRUSTED_ORIGINS=settings.CSRF_TRUSTED_ORIGINS):
+            self.assertFalse([error for error in run_checks() if error.id == '4_0.E001'])
+
+
+class OriginNormalizationTests(SimpleTestCase):
+    def test_https_default_preserves_explicit_protocols_ports_and_deduplicates(self):
+        from .origins import trusted_origins
+        self.assertEqual(trusted_origins(' example.com,https://example.com/,http://localhost:8000/,https://other.example, '), ['https://example.com', 'http://localhost:8000', 'https://other.example'])
+        self.assertEqual(trusted_origins(''), [])
+
+    def test_invalid_origins_are_rejected_without_disabling_csrf(self):
+        from .origins import trusted_origins
+        from django.core.exceptions import ImproperlyConfigured
+        for value in ['*', 'ftp://example.com', 'https://example.com/path', 'https://user:password@example.com', 'https://example.com?query=1', 'example.com:badport', 'bad host.example']:
+            with self.subTest(value=value):
+                with self.assertRaises(ImproperlyConfigured):
+                    trusted_origins(value)
+
 
 class HealthTests(TestCase):
     def test_public_health_endpoint(self):
