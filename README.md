@@ -78,7 +78,7 @@ API bazasi: `/api/v1/`. Brauzerda ko‘rish va sinash: `/api/docs/`; OpenAPI JSO
 
 ## Railway’ga joylash
 
-`Dockerfile` Python 3.13, Gunicorn va WhiteNoise bilan ilovani ishga tushiradi. `railway.json` deploydan oldin migratsiyalar va `setup_crm` ni bajaradi. Statik fayllar Docker build vaqtida yig‘iladi. Ilova Railway bergan `PORT` ni tinglaydi; `/health/` ma’lumotlar bazasi ulanishini tekshiradi.
+`Dockerfile` Python 3.13, Gunicorn va WhiteNoise bilan ilovani ishga tushiradi. `railway.json` deploydan oldin migratsiyalar va `setup_crm` ni bajaradi. `python -m config.start` serverni ochishdan oldin migratsiyalar va rollarni yana tekshiradi; xato bo‘lsa server ochilmaydi. Bu API yangilanishidagi yangi ustunlar qo‘llanmay qolib, logindan so‘ng 500 chiqishining oldini oladi. Mavjud baza o‘chirilmaydi. Statik fayllar Docker build vaqtida yig‘iladi. Ilova Railway bergan `PORT` ni tinglaydi; `/health/` ma’lumotlar bazasi ulanishini tekshiradi.
 
 1. Deploy fayllarini GitHub’ga push qiling.
 2. Railway’da `New Project → Deploy from GitHub repo` orqali `qurilishmollari/CRM-qurilish-mollari` va `main` tarmog‘ini tanlang.

@@ -57,3 +57,24 @@ class HealthTests(TestCase):
             response = self.client.get('/health/')
         self.assertEqual(response.status_code, 503)
         self.assertEqual(response.json(), {'status': 'unavailable'})
+
+
+class StartupTests(SimpleTestCase):
+    def test_migrations_and_roles_run_before_web_server(self):
+        from .start import main
+        with patch('config.start.subprocess.run') as run, patch('config.start.os.chdir'), patch('config.start.os.execvp') as execute:
+            main()
+        self.assertEqual(len(run.call_args_list), 2)
+        self.assertIn('migrate', run.call_args_list[0].args[0])
+        self.assertIn('--noinput', run.call_args_list[0].args[0])
+        self.assertIn('setup_crm', run.call_args_list[1].args[0])
+        self.assertTrue(run.call_args_list[0].kwargs['check'])
+        self.assertIn('gunicorn', execute.call_args.args[1])
+
+    def test_failed_migration_prevents_web_server_start(self):
+        import subprocess
+        from .start import main
+        with patch('config.start.subprocess.run', side_effect=subprocess.CalledProcessError(1, 'migrate')), patch('config.start.os.execvp') as execute:
+            with self.assertRaises(subprocess.CalledProcessError):
+                main()
+        execute.assert_not_called()
