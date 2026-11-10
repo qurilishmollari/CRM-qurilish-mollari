@@ -1,0 +1,77 @@
+# Qurilish CRM
+
+Qurilish mollari do‘koni uchun Django asosidagi boshlang‘ich CRM. Interfeys o‘zbek tilida, hisob-kitoblar UZS da. Ishlab chiqarish serveriga chiqarishdan oldin sozlash va qabul sinovlari kerak.
+
+## Ishga tushirish (Windows PowerShell)
+
+Python 3.12 yoki yangiroq versiya va internet ulanishi kerak. Hozirgi papkada `.venv` mavjud.
+
+```powershell
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+.\.venv\Scripts\python.exe manage.py migrate
+.\.venv\Scripts\python.exe manage.py setup_crm
+.\.venv\Scripts\python.exe manage.py seed_products
+.\.venv\Scripts\python.exe manage.py createsuperuser
+.\.venv\Scripts\python.exe manage.py runserver
+```
+
+Brauzer: http://127.0.0.1:8000/ · Admin: http://127.0.0.1:8000/admin/
+
+Yangi muhit kerak bo‘lsa avval `py -m venv .venv` bajaring. Boshlang‘ich migratsiya repozitoriyga kiritilgan. Ushbu ish muhitida tarmoq cheklovi sabab Django 6.0.6 va uning bog‘liqliklari kompyuterdagi mavjud virtual muhitdan mahalliy nusxalandi.
+
+## Mavjud imkoniyatlar
+
+- Bosh sahifa: bugungi savdo, mijozlar, tovarlar, kam qoldiq va oxirgi operatsiyalar.
+- Kategoriya, artikul, shtrix-kod, dona/kg/tonna/m/m²/m³/qop, xarid va sotuv narxlari.
+- Mijozlar, yetkazib beruvchilar, telefon, manzil va izohlar.
+- Ko‘p omborli hisob: xarid kirimi, sotuv chiqimi va omborlararo ko‘chirish.
+- Bir hujjatda bir nechta tovar; kasrli miqdorlar; qator qo‘shish.
+- Qoldiq yetishmasligini tekshirish; hujjatni atomar tasdiqlash; qayta tasdiqlashdan himoya.
+- Asl sotuvga bog‘langan qaytarish; miqdor va narx tekshiruvi.
+- Naqd, karta, bank to‘lovlari; kirim/chiqim; hamkor qarzdorligi va avanslar.
+- Xarajatlar, barcha davr uchun savdo tushumi, hisobiy yalpi va sof foyda.
+- Ombor qidiruvi, filtri va CSV eksporti; hujjatni chop etish.
+- Django autentifikatsiyasi, CSRF himoyasi va serverda tekshiriladigan ruxsatlar.
+- Rahbar, sotuvchi, omborchi va hisobchi guruhlari.
+
+## Foydalanish
+
+1. `setup_crm` asosiy ombor, kategoriyalar va rollarni yaratadi; qayta bajarish mumkin.
+2. Admin panelida foydalanuvchilar yarating va guruh biriktiring. Oddiy CRM foydalanuvchisiga `is_staff` shart emas; admin uchun kerak.
+3. Tovar va yetkazib beruvchini kiriting. Xarid hujjati orqali boshlang‘ich ombor qoldig‘ini kiriting.
+4. Mijoz yarating, sotuv hujjatini saqlang. Sotuv avtomatik to‘lov yaratmaydi: mijozdan kelgan pulni To‘lovlar → Kirim orqali alohida yozing.
+5. Yetkazib beruvchiga to‘lovni Chiqim orqali yozing. Mijozga pul qaytarish ham Chiqim; qaytarish hujjati pulni avtomatik qaytarmaydi.
+6. Hisobotdagi musbat balans — qarz, manfiy balans — avans. Mijoz balansi va yetkazib beruvchi balansi qarama-qarshi majburiyatlarni bildiradi.
+
+Tasdiqlangan hujjatlar va to‘lovlar admin orqali tahrirlanmaydi yoki o‘chirilmaydi. `add_document` sotuv va mijozdan qaytarishga ruxsat beradi; xarid va omborlararo ko‘chirish uchun qo‘shimcha `manage_inventory_documents` huquqi kerak. Omborchi dastlab faqat ko‘radi. To‘lov xatolarini izohli qarama-qarshi to‘lov bilan tuzatish mumkin.
+
+### Sotuvchi roli
+
+Admin → Foydalanuvchilar orqali xodim yarating va `Sotuvchi` guruhiga qo‘shing. `Superuser`, `Staff` yoki boshqa boshqaruv guruhlarini bermang. Sotuvchi kirganda savdo sahifasi ochiladi; sotuv va mijozdan qaytarish yaratadi, mijoz qo‘shadi, katalog va ombor qoldiqlarini ko‘radi. U xarid, ko‘chirish, tovar tahriri, yetkazib beruvchilar, to‘lovlar, xarajatlar va moliyaviy hisobotlarga kira olmaydi. Cheklovlar serverda ham tekshiriladi. Sotuvchilar barcha sotuv/qaytarish hujjatlarini ko‘ra oladi.
+
+Sotuvchi hujjat formasida hamkor tanlamaydi: xaridor ismi va telefonini kiritadi. Telefon bo‘shliq, qavs va chiziqchalardan tozalanadi; ism va telefon bo‘yicha mavjud mijoz topiladi yoki sotuvda yangisi yaratiladi. Hujjatda xaridor ma’lumotlari ham alohida saqlanadi. Mahsulotlar ro‘yxatida katalog narxi ko‘rinadi; miqdor va jami brauzerda avtomatik hisoblanadi. Sotuvchi uchun birlik narxi serverda katalogdan olinadi, so‘rov orqali yuborilgan boshqa narx qo‘llanmaydi. Admin narxlarni qo‘lda belgilashi mumkin.
+
+Sotuvchi qaytarishda ham xaridorning avvalgi xariddagi ismi va telefonini, ombor, mahsulot va miqdorni kiritadi; `Asl sotuv` maydoni yo‘q. Qaytarish miqdori shu xaridor va ombor bo‘yicha sotilgan, hali qaytarilmagan umumiy miqdordan oshmaydi. Asl hujjatsiz qaytarishda summa joriy katalog narxi, tannarx esa joriy xarid narxi bo‘yicha olinadi. Tarixiy narx bo‘yicha qaytarish kerak bo‘lsa, admin asl sotuvga bog‘langan hujjat yaratishi mumkin. Tovar omborga qaytadi va mijoz qarzi kamayadi; pul qaytarishni hisobchi alohida to‘lov sifatida yozadi.
+
+### Davriy hisobotlar
+
+Hisobotlar sahifasida `Kunlik`, `Haftalik`, `Oylik`, `Barcha davr` tugmalari bor. Kunlik — bugun; haftalik — joriy haftaning dushanbasidan bugungacha; oylik — joriy oyning birinchi kunidan bugungacha, Asia/Tashkent bo‘yicha. Tanlangan davrga savdo/qaytarish, tushum, tannarx, xarajat, foyda va to‘lov kirim/chiqimi kiradi. Qarzdorlik jadvali doimo joriy, barcha davr balansidir. Sotuvchi moliyaviy hisobotni ko‘ra olmaydi.
+
+`seed_products` sement M400/M500, ohak, qum, shag‘al, g‘isht, gazoblok, armatura, gipsli suvoq va kafel yelimini yaratadi. Qayta bajarilsa nusxalar yaratmaydi, mavjud narxlarni o‘zgartirmaydi. Yangi mahsulotlarning narxi 0; savdodan oldin admin haqiqiy narxlarni va xarid hujjati orqali qoldiqlarni kiritishi kerak.
+
+## Hisob cheklovlari va keyingi bosqichlar
+
+Hozir tannarx oxirgi xarid narxi bo‘yicha olinadi va sotuv paytida saqlanadi; FIFO yoki o‘rtacha tortilgan tannarx qo‘llanmaydi. QQS, chegirmalar, yetkazib berish, xarid qaytarishi, inventarizatsiya tuzatishlari, kassa smenasi, fiskal chek, ish haqi, Telegram/SMS va tashqi buxgalteriya integratsiyalari hali yo‘q. Bu to‘liq buxgalteriya yoki barcha biznes jarayonlari tayyor bo‘lgan ERP emas.
+
+SQLite mahalliy ishga tushirish uchun. Ko‘p xodim bir vaqtda ishlaydigan serverda PostgreSQL, zaxira nusxa, HTTPS va alohida deploy sozlamalari kerak; SQLite `select_for_update` orqali qator qulfini ta’minlamaydi. Hisobotlar kichik do‘kon uchun yozilgan; katta ma’lumotlarda SQL agregatsiyasini kengaytirish kerak.
+
+Production uchun `DJANGO_DEBUG=0`, tasodifiy `DJANGO_SECRET_KEY`, `DJANGO_ALLOWED_HOSTS` muhit o‘zgaruvchilarini belgilang; HTTPS talab qilinadi. `collectstatic` bajaring va ishlab chiqarish WSGI serveridan foydalaning.
+
+## Tekshirish
+
+```powershell
+.\.venv\Scripts\python.exe manage.py check
+.\.venv\Scripts\python.exe manage.py test
+```
+
+Sinovlar xarid/sotuv/to‘lov, yetarli bo‘lmagan qoldiq, qayta tasdiqlash, ko‘chirish, qaytarish limiti, sahifalar, ruxsatlar va xato hujjatning to‘liq bekor qilinishini qamrab oladi.

@@ -1,0 +1,14 @@
+{% load static %}
+<!doctype html><html lang="uz"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>{% block title %}Qurilish CRM{% endblock %}</title><link rel="stylesheet" href="{% static 'crm/style.css' %}"><link rel="stylesheet" href="{% static 'crm/reports.css' %}"></head>
+<body><aside><a class="brand" href="{% url 'dashboard' %}"><span class="logo">Q</span> Qurilish<span class="brand-light">CRM</span></a><p class="nav-label">BOSHQARUV</p><nav>
+{% if perms.crm.manage_inventory_documents %}<a href="{% url 'dashboard' %}">▦ <span>Bosh sahifa</span></a>{% endif %}
+{% if perms.crm.view_document %}<a href="{% url 'documents' %}">▤ <span>Savdo va qaytarish</span></a>{% endif %}
+{% if perms.crm.view_stock %}<a href="{% url 'inventory' %}">▧ <span>Ombor qoldiqlari</span></a>{% endif %}
+{% if perms.crm.view_product %}<a href="{% url 'listing' 'products' %}">◇ <span>Tovarlar</span></a>{% endif %}
+{% if perms.crm.view_partner %}<a href="{% url 'listing' 'partners' %}">♙ <span>{% if perms.crm.manage_inventory_documents %}Mijozlar va hamkorlar{% else %}Mijozlar{% endif %}</span></a>{% endif %}
+{% if perms.crm.view_payment %}<a href="{% url 'listing' 'payments' %}">↔ <span>To‘lovlar</span></a>{% endif %}
+{% if perms.crm.view_expense %}<a href="{% url 'listing' 'expenses' %}">↗ <span>Xarajatlar</span></a>{% endif %}
+{% if perms.crm.view_document and perms.crm.view_payment and perms.crm.view_expense and perms.crm.view_partner %}<a href="{% url 'reports' %}">▥ <span>Hisobotlar</span></a>{% endif %}
+{% if perms.crm.view_warehouse %}<a href="{% url 'listing' 'warehouses' %}">⌂ <span>Omborlar</span></a>{% endif %}
+{% if user.is_staff %}<a href="{% url 'admin:index' %}">⚙ <span>Sozlamalar</span></a>{% endif %}</nav><div class="aside-bottom">Qurilish savdosi uchun<br><strong>Yagona boshqaruv tizimi</strong></div></aside>
+<div class="workspace"><header><span>Biznesingiz nazorat ostida</span><div class="user"><span class="avatar">{{ user.username|first|upper }}</span>{{ user.get_full_name|default:user.username }}<form method="post" action="{% url 'logout' %}">{% csrf_token %}<button class="text-button">Chiqish</button></form></div></header><main>{% for message in messages %}<div class="message">{{ message }}</div>{% endfor %}{% block content %}{% endblock %}</main><footer>Qurilish CRM · Summalar O‘zbekiston so‘mida</footer></div><script src="{% static 'crm/app.js' %}"></script></body></html>

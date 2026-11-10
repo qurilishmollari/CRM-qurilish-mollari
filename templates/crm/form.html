@@ -1,0 +1,21 @@
+{% extends 'crm/base.html' %}
+{% block content %}
+<div class="page-heading"><div><h1>{{ title }}</h1><p>Majburiy maydonlarni to‘ldiring va saqlang.</p></div></div>
+<section class="panel form-panel"><form method="post">
+{% csrf_token %}{{ form.non_field_errors }}
+<div class="form-grid">{% for field in form %}<div class="field"><label for="{{ field.id_for_label }}">{{ field.label }} {% if field.field.required %}*{% endif %}</label>{{ field }}{{ field.errors }}</div>{% endfor %}</div>
+{% if formset %}
+<h3>Tovarlar</h3><p class="muted">Mahsulotni tanlang va miqdorni kiriting. Jami summa avtomatik hisoblanadi.</p>
+{% if not perms.crm.manage_inventory_documents %}<p class="muted">Qaytarishda xaridorning avvalgi xariddagi ismi va telefonini yozing. Qaytarish summasi katalogdagi joriy narx bo‘yicha hisoblanadi.</p>{% endif %}
+{{ formset.management_form }}{{ formset.non_form_errors }}
+<div class="table-wrap"><table id="lines"><thead><tr><th>Tovar va narxi</th><th>Miqdor</th><th>Birlik narxi (so‘m)</th><th>Jami (so‘m)</th><th>O‘chirish</th></tr></thead><tbody>
+{% for line in formset %}<tr><td>{% for hidden in line.hidden_fields %}{{ hidden }}{% endfor %}{{ line.non_field_errors }}{{ line.product }}{{ line.product.errors }}</td><td>{{ line.quantity }}{{ line.quantity.errors }}</td><td>{{ line.price }}{{ line.price.errors }}</td><td><output class="line-total">0,00</output></td><td>{{ line.DELETE }}</td></tr>{% endfor %}
+</tbody></table></div>
+<button type="button" class="secondary" id="add-line">+ Qator qo‘shish</button>
+<template id="empty-line"><tr><td>{% for hidden in formset.empty_form.hidden_fields %}{{ hidden }}{% endfor %}{{ formset.empty_form.product }}</td><td>{{ formset.empty_form.quantity }}</td><td>{{ formset.empty_form.price }}</td><td><output class="line-total">0,00</output></td><td>{{ formset.empty_form.DELETE }}</td></tr></template>
+<h2 class="total" aria-live="polite">Jami: <output id="document-total">0,00</output> so‘m</h2>
+{{ product_prices|json_script:'product-prices' }}
+<p class="muted">Tasdiqlanganda ombor qoldig‘i yangilanadi.</p>
+{% endif %}
+<div class="form-actions"><button type="submit">{% if formset %}Tasdiqlash va saqlash{% else %}Saqlash{% endif %}</button><a href="{% url 'dashboard' %}">Bosh sahifaga</a></div>
+</form></section>{% endblock %}

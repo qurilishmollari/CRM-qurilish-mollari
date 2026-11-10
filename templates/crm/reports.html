@@ -1,0 +1,11 @@
+{% extends 'crm/base.html' %}{% block content %}
+<div class="page-heading"><div><h1>Moliyaviy hisobotlar</h1><p>{{ period_label }}{% if start %} · {{ start|date:'d.m.Y' }} — {{ today|date:'d.m.Y' }}{% endif %}</p></div></div>
+<nav class="report-periods" aria-label="Hisobot davri">
+<a class="{% if period == 'day' %}active{% endif %}" href="?period=day">Kunlik</a>
+<a class="{% if period == 'week' %}active{% endif %}" href="?period=week">Haftalik</a>
+<a class="{% if period == 'month' %}active{% endif %}" href="?period=month">Oylik</a>
+<a class="{% if period == 'all' %}active{% endif %}" href="?period=all">Barcha davr</a>
+</nav>
+<div class="stats"><article><span>Sof savdo tushumi</span><h2>{{ revenue|floatformat:2 }}</h2><p>Qaytarishlar chegirilgan</p></article><article><span>Yalpi foyda</span><h2>{{ profit|floatformat:2 }}</h2><p>Savdo minus hisobga olingan tannarx</p></article><article><span>Xarajatlar</span><h2>{{ expenses|floatformat:2 }}</h2><p>Tanlangan davr xarajatlari</p></article><article class="accent"><span>Hisobiy sof foyda</span><h2>{{ net|floatformat:2 }}</h2><p>Yalpi foyda minus xarajatlar</p></article></div>
+<div class="stats"><article><span>Sotuvlar soni</span><h2>{{ sale_count }}</h2></article><article><span>Qaytarishlar soni</span><h2>{{ return_count }}</h2></article><article><span>To‘lov kirimi</span><h2>{{ incoming|floatformat:2 }}</h2></article><article><span>To‘lov chiqimi</span><h2>{{ outgoing|floatformat:2 }}</h2></article></div>
+<section class="panel"><div class="panel-heading"><h3>Joriy qarzdorlik va avanslar</h3></div><p class="help">Balanslar barcha davr bo‘yicha. Musbat balans: mijoz bizga qarzdor yoki biz yetkazib beruvchiga qarzdormiz. Manfiy balans: avans / ortiqcha to‘lov.</p><div class="table-wrap"><table><thead><tr><th>Hamkor</th><th>Turi</th><th>Telefon</th><th>Balans (so‘m)</th></tr></thead><tbody>{% for row in balances %}<tr><td>{{ row.partner.name }}</td><td>{{ row.partner.get_kind_display }}</td><td>{{ row.partner.phone }}</td><td>{{ row.balance|floatformat:2 }}</td></tr>{% empty %}<tr><td colspan="4" class="empty">Hamkorlar hali yo‘q.</td></tr>{% endfor %}</tbody></table></div></section>{% endblock %}

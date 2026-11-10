@@ -1,0 +1,1 @@
+.report-periods{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:24px}.report-periods a{background:#fff;border:1px solid var(--border);font-size:13px;padding:9px 20px}.report-periods a.active{background:var(--green);color:#fff}
