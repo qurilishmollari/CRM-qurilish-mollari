@@ -29,7 +29,7 @@ if ($LASTEXITCODE -ne 0 -or $remoteUrl -notin @('https://github.com/qurilishmoll
     throw 'Origin must point to the expected CRM repository.'
 }
 
-Invoke-ProjectGit -GitArguments @('add', '--', 'README.md', 'requirements.txt', 'Dockerfile', 'railway.json', 'config', 'crm/models.py', 'crm/views.py', 'crm/api', 'crm/reporting.py', 'crm/test_production_login.py', 'crm/migrations/0006_document_api_request_hash_document_api_request_id.py', 'docs', 'templates/crm/api_docs.html', 'static/crm/api_docs.css', 'static/crm/api_docs.js', 'tools/publish-api.ps1')
+Invoke-ProjectGit -GitArguments @('add', '--', 'README.md', 'requirements.txt', 'Dockerfile', 'railway.json', 'config', 'crm/models.py', 'crm/views.py', 'crm/api', 'crm/reporting.py', 'crm/test_production_login.py', 'crm/test_accounts.py', 'crm/management/commands/setup_accounts.py', 'crm/migrations/0006_document_api_request_hash_document_api_request_id.py', 'docs', 'templates/crm/api_docs.html', 'static/crm/api_docs.css', 'static/crm/api_docs.js', 'tools/publish-api.ps1')
 & git -C $projectRoot -c "safe.directory=$gitSafePath" diff --cached --quiet
 $diffExitCode = $LASTEXITCODE
 if ($diffExitCode -eq 1) {

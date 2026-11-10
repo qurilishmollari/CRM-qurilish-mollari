@@ -12,6 +12,8 @@ def main():
         if command == 'migrate':
             args.append('--noinput')
         subprocess.run(args, cwd=project_root, check=True)
+    if os.environ.get('CRM_SETUP_ACCOUNTS_PASSWORD'):
+        subprocess.run([sys.executable, str(project_root / 'manage.py'), 'setup_accounts'], cwd=project_root, check=True)
     os.chdir(project_root)
     os.execvp(sys.executable, [sys.executable, '-m', 'gunicorn', 'config.wsgi:application', '--bind', f'0.0.0.0:{os.environ.get("PORT", "8000")}', '--workers', os.environ.get('WEB_CONCURRENCY', '2'), '--timeout', '120', '--access-logfile', '-', '--error-logfile', '-'])
 

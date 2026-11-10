@@ -84,6 +84,14 @@ class HealthTests(TestCase):
 
 
 class StartupTests(SimpleTestCase):
+    def test_account_setup_only_when_explicitly_enabled(self):
+        from .start import main
+        with patch.dict(os.environ, {'CRM_SETUP_ACCOUNTS_PASSWORD': 'test-value'}, clear=True), patch('config.start.subprocess.run') as run, patch('config.start.os.chdir'), patch('config.start.os.execvp'):
+            main()
+        self.assertEqual(len(run.call_args_list), 3)
+        self.assertIn('setup_accounts', run.call_args_list[2].args[0])
+        self.assertNotIn('test-value', run.call_args_list[2].args[0])
+
     def test_migrations_and_roles_run_before_web_server(self):
         from .start import main
         with patch('config.start.subprocess.run') as run, patch('config.start.os.chdir'), patch('config.start.os.execvp') as execute:
