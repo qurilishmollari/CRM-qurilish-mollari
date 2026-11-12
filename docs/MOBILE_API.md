@@ -50,6 +50,8 @@ Content-Type: application/json
 | PATCH | `products/{id}/` | Tovarni tahrirlash |
 | DELETE | `products/{id}/` | Hisobda ishlatilmagan tovarni o‘chirish |
 | GET | `categories/`, `categories/{id}/` | Kategoriyalar |
+| POST | `categories/` | Kategoriya yaratish (`name`); admin |
+| DELETE | `categories/{id}/` | Bo‘sh kategoriyani o‘chirish; admin |
 | GET | `warehouses/`, `warehouses/{id}/` | Omborlar |
 | GET | `stocks/`, `stocks/{id}/` | Qoldiqlar |
 | GET, POST | `partners/` | Mijoz / hamkorlar |

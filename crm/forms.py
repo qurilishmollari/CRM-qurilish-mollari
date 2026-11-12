@@ -2,7 +2,7 @@ from django import forms
 from django.core import signing
 from django.forms import inlineformset_factory
 import re
-from .models import Document, DocumentLine, Expense, Partner, Payment, Product, Warehouse
+from .models import Category, Document, DocumentLine, Expense, Partner, Payment, Product, Warehouse
 
 class DocumentForm(forms.ModelForm):
     class Meta:
@@ -107,6 +107,12 @@ class WarehouseForm(forms.ModelForm):
     class Meta:
         model = Warehouse
         fields = ['name', 'address']
+
+
+class CategoryForm(forms.ModelForm):
+    class Meta:
+        model = Category
+        fields = ['name']
 
 
 class ProductDeleteForm(forms.Form):

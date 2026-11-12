@@ -5,6 +5,7 @@
 {% if perms.crm.view_document %}<a href="{% url 'documents' %}">▤ <span>Savdo va qaytarish</span></a>{% endif %}
 {% if perms.crm.view_stock %}<a href="{% url 'inventory' %}">▧ <span>Ombor qoldiqlari</span></a>{% endif %}
 {% if perms.crm.view_product %}<a href="{% url 'listing' 'products' %}">◇ <span>Tovarlar</span></a>{% endif %}
+{% if perms.crm.view_category %}<a href="{% url 'listing' 'categories' %}">▱ <span>Kategoriyalar</span></a>{% endif %}
 {% if perms.crm.view_partner %}<a href="{% url 'listing' 'partners' %}">♙ <span>{% if perms.crm.manage_inventory_documents %}Mijozlar va hamkorlar{% else %}Mijozlar{% endif %}</span></a>{% endif %}
 {% if perms.crm.view_payment %}<a href="{% url 'listing' 'payments' %}">↔ <span>To‘lovlar</span></a>{% endif %}
 {% if perms.crm.view_expense %}<a href="{% url 'listing' 'expenses' %}">↗ <span>Xarajatlar</span></a>{% endif %}

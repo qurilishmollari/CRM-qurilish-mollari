@@ -16,6 +16,7 @@ def endpoints():
             {'method': 'GET', 'path': f'{resource}/{{id}}/', 'title': f'{group}: tafsilot', 'group': group},
         ])
     for resource, body in [
+        ('categories', {'name': 'Yangi kategoriya'}),
         ('products', {'name': 'Yangi tovar', 'category': 1, 'unit': 'dona', 'sale_price': '15000.00', 'minimum_stock': '0', 'active': True}),
         ('partners', {'name': 'Ali Valiyev', 'kind': 'customer', 'phone': '+998901234567'}),
         ('documents', sale),
@@ -28,6 +29,7 @@ def endpoints():
         {'method': 'POST', 'path': 'documents/', 'title': 'Mijozdan tovar qaytarish', 'group': 'Hujjatlar', 'body': {**sale, 'kind': 'return'}},
         {'method': 'PATCH', 'path': 'products/{id}/', 'title': 'Tovarni tahrirlash', 'group': 'Tovarlar', 'body': {'sale_price': '18000.00'}},
         {'method': 'DELETE', 'path': 'products/{id}/', 'title': 'Tovarni o‘chirish', 'group': 'Tovarlar'},
+        {'method': 'DELETE', 'path': 'categories/{id}/', 'title': 'Bo‘sh kategoriyani o‘chirish', 'group': 'Kategoriyalar'},
         {'method': 'GET', 'path': 'reports/', 'title': 'Kunlik / haftalik / oylik / yillik hisobot', 'group': 'Hisobotlar', 'query': 'period=day'},
         {'method': 'GET', 'path': 'reports/', 'title': 'Excel hisobotini yuklash', 'group': 'Hisobotlar', 'query': 'period=year&export=xlsx'},
     ])

@@ -84,13 +84,22 @@ class ProductViewSet(viewsets.ModelViewSet):
             return Response({'detail': 'Tovar ombor yoki hujjatlarga bog‘langan.'}, status=409)
 
 
-class CategoryViewSet(viewsets.ReadOnlyModelViewSet):
+class CategoryViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, mixins.CreateModelMixin, mixins.DestroyModelMixin, viewsets.GenericViewSet):
     serializer_class = CategorySerializer
     queryset = Category.objects.all()
     def check_permissions(self, request):
         super().check_permissions(request)
-        if not request.user.has_perm('crm.view_product'):
+        required = {'POST': 'crm.add_category', 'DELETE': 'crm.delete_category'}.get(request.method)
+        if required and not request.user.has_perm(required):
             raise PermissionDenied()
+        if not required and not (request.user.has_perm('crm.view_product') or request.user.has_perm('crm.view_category')):
+            raise PermissionDenied()
+
+    def destroy(self, request, *args, **kwargs):
+        try:
+            return super().destroy(request, *args, **kwargs)
+        except ProtectedError:
+            return Response({'detail': 'Kategoriya tovarlarga biriktirilgan.'}, status=409)
 
 
 class WarehouseViewSet(viewsets.ReadOnlyModelViewSet):

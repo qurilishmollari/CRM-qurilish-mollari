@@ -23,6 +23,7 @@ Yangi muhit kerak bo‘lsa avval `py -m venv .venv` bajaring. Boshlang‘ich mig
 
 - Bosh sahifa: bugungi savdo, mijozlar, tovarlar, kam qoldiq va oxirgi operatsiyalar.
 - Kategoriya, artikul, dona/kg/tonna/m/m²/m³/qop, xarid va sotuv narxlari.
+- Admin menyusidagi `Kategoriyalar` orqali yangi kategoriya qo‘shish, nomi bo‘yicha qidirish va tasdiqlab o‘chirish mumkin. Tovarlarga biriktirilgan kategoriya o‘chirilmaydi; avval tovarlarni boshqa kategoriyaga o‘tkazish kerak. Sotuvchi faqat tovar tanlash uchun kategoriyalarni ko‘radi, boshqara olmaydi. Mobil API’da ham POST/DELETE qo‘shilgan.
 - Yangi tovar formasi ochilishi bilan artikul avtomatik `TOV-…` formatida yaratiladi va faqat ko‘rish uchun chiqariladi. Saqlanganda ham aynan shu artikul qoladi; forma xatolarida ham o‘zgarmaydi. Artikul imzolangan yashirin qiymat bilan tekshiriladi, admin uni qo‘lda yozmaydi. Mavjud artikullar saqlanadi, tovar tahrirlanganda o‘zgarmaydi. Shtrix-kod maydoni olib tashlangan.
 - Mijozlar, yetkazib beruvchilar, telefon, manzil va izohlar.
 - Ko‘p omborli hisob: xarid kirimi, sotuv chiqimi va omborlararo ko‘chirish.
@@ -39,7 +40,7 @@ Yangi muhit kerak bo‘lsa avval `py -m venv .venv` bajaring. Boshlang‘ich mig
 
 ## Foydalanish
 
-1. `setup_crm` asosiy ombor, kategoriyalar va rollarni yaratadi; qayta bajarish mumkin.
+1. `setup_crm` asosiy ombor va rollarni yaratadi; qayta bajarish mumkin. Standart kategoriyalar kerak bo‘lsa bir marta `setup_crm --seed-categories` bajaring. Oddiy server restarti o‘chirilgan kategoriyalarni qayta yaratmaydi.
 2. Admin panelida foydalanuvchilar yarating va guruh biriktiring. Oddiy CRM foydalanuvchisiga `is_staff` shart emas; admin uchun kerak.
 3. Tovar va yetkazib beruvchini kiriting. Xarid hujjati orqali boshlang‘ich ombor qoldig‘ini kiriting.
 4. Mijoz yarating, sotuv hujjatini saqlang. Sotuv avtomatik to‘lov yaratmaydi: mijozdan kelgan pulni To‘lovlar → Kirim orqali alohida yozing.

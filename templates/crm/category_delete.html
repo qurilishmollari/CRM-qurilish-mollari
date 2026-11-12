@@ -1,0 +1,7 @@
+{% extends 'crm/base.html' %}
+{% block content %}
+<div class="page-heading"><div><h1>Kategoriyani o‘chirish</h1><p>{{ category.name }}</p></div></div>
+<section class="panel form-panel">
+{% if product_count %}<p>Bu kategoriyaga <strong>{{ product_count }} ta tovar</strong> biriktirilgan. Avval tovarlarni boshqa kategoriyaga o‘tkazing; hozir kategoriya o‘chirilmaydi.</p><a href="{% url 'listing' 'categories' %}">Kategoriyalarga qaytish</a>
+{% else %}<p><strong>{{ category.name }}</strong> kategoriyasini o‘chirishni tasdiqlaysizmi?</p><form method="post">{% csrf_token %}<div class="form-actions"><button class="danger" type="submit">O‘chirishni tasdiqlash</button><a href="{% url 'listing' 'categories' %}">Bekor qilish</a></div></form>{% endif %}
+</section>{% endblock %}

@@ -7,11 +7,11 @@ from django.core.paginator import Paginator
 from django.db import transaction
 from django.db.models import F, Q, Sum
 from django.db.models.deletion import ProtectedError
-from django.views.decorators.http import require_POST
+from django.views.decorators.http import require_POST, require_http_methods
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
-from .forms import DocumentForm, ExpenseForm, LineFormSet, PartnerForm, PaymentForm, ProductForm, WarehouseForm, ProductDeleteForm
+from .forms import CategoryForm, DocumentForm, ExpenseForm, LineFormSet, PartnerForm, PaymentForm, ProductForm, WarehouseForm, ProductDeleteForm
 from .models import Category, Document, Expense, Partner, Payment, Product, Stock, Warehouse
 from .services import post_document
 from .permissions import allowed_document_kinds, visible_documents
@@ -29,6 +29,7 @@ def dashboard(request):
     return render(request, 'crm/dashboard.html', {'revenue': revenue, 'sale_count': sales.count(), 'product_count': Product.objects.filter(active=True).count(), 'customer_count': Partner.objects.filter(kind='customer').count(), 'low': low[:8], 'recent': docs.select_related('partner', 'warehouse')[:8]})
 
 SECTIONS = {
+    'categories': (Category, CategoryForm, 'Kategoriyalar', ['name']),
     'products': (Product, ProductForm, 'Tovarlar', ['name', 'sku', 'category', 'unit', 'sale_price']),
     'partners': (Partner, PartnerForm, 'Mijozlar va yetkazib beruvchilar', ['name', 'kind', 'phone', 'address']),
     'warehouses': (Warehouse, WarehouseForm, 'Omborlar', ['name', 'address']),
@@ -52,7 +53,7 @@ def listing(request, section):
     query = request.GET.get('q', '').strip()
     if query:
         if section == 'products': qs = qs.filter(Q(name__icontains=query) | Q(sku__icontains=query))
-        elif section in ('partners', 'warehouses'): qs = qs.filter(name__icontains=query)
+        elif section in ('partners', 'warehouses', 'categories'): qs = qs.filter(name__icontains=query)
         elif section == 'payments': qs = qs.filter(partner__name__icontains=query)
         else: qs = qs.filter(title__icontains=query)
     page = Paginator(qs.order_by('-pk'), 30).get_page(request.GET.get('page'))
@@ -60,7 +61,23 @@ def listing(request, section):
     for obj in page:
         cells = [getattr(obj, f'get_{field}_display', lambda: getattr(obj, field))() for field in fields]
         rows.append({'id': obj.pk, 'cells': cells})
-    return render(request, 'crm/list.html', {'title': title, 'section': section, 'headers': [model._meta.get_field(f).verbose_name for f in fields], 'rows': rows, 'page': page, 'q': query, 'can_add': request.user.has_perm(f'crm.add_{model._meta.model_name}'), 'can_delete_products': section == 'products' and request.user.has_perm('crm.delete_product')})
+    return render(request, 'crm/list.html', {'title': title, 'section': section, 'headers': [model._meta.get_field(f).verbose_name for f in fields], 'rows': rows, 'page': page, 'q': query, 'can_add': request.user.has_perm(f'crm.add_{model._meta.model_name}'), 'can_delete_products': section == 'products' and request.user.has_perm('crm.delete_product'), 'can_delete_categories': section == 'categories' and request.user.has_perm('crm.delete_category')})
+
+
+@login_required
+@permission_required(['crm.view_category', 'crm.delete_category'], raise_exception=True)
+@require_http_methods(['GET', 'POST'])
+def category_delete(request, pk):
+    category = get_object_or_404(Category, pk=pk)
+    if request.method == 'POST':
+        try:
+            category.delete()
+        except ProtectedError:
+            messages.error(request, 'Kategoriya tovarlarga biriktirilgan. Avval tovarlarni boshqa kategoriyaga o‘tkazing.')
+        else:
+            messages.success(request, 'Kategoriya o‘chirildi.')
+        return redirect('listing', section='categories')
+    return render(request, 'crm/category_delete.html', {'category': category, 'product_count': category.product_set.count()})
 
 
 @login_required
