@@ -1,6 +1,7 @@
 import re
 from decimal import Decimal
 from django.contrib.auth import authenticate
+from django.db import transaction
 from rest_framework import serializers
 from crm.models import Category, Document, DocumentLine, Expense, Partner, Payment, Product, Stock, Warehouse
 
@@ -25,10 +26,12 @@ class LoginSerializer(serializers.Serializer):
 
 
 class ProductSerializer(serializers.ModelSerializer):
+    opening_quantity = serializers.DecimalField(max_digits=18, decimal_places=3, min_value=Decimal('0'), required=False, write_only=True)
+    opening_warehouse = serializers.PrimaryKeyRelatedField(queryset=Warehouse.objects.all(), required=False, write_only=True)
     category_name = serializers.CharField(source='category.name', read_only=True)
     class Meta:
         model = Product
-        fields = ['id', 'name', 'sku', 'category', 'category_name', 'unit', 'purchase_price', 'sale_price', 'minimum_stock', 'active']
+        fields = ['id', 'name', 'sku', 'category', 'category_name', 'unit', 'purchase_price', 'sale_price', 'minimum_stock', 'active', 'opening_quantity', 'opening_warehouse']
         read_only_fields = ['id', 'sku']
 
     def get_fields(self):
@@ -37,6 +40,26 @@ class ProductSerializer(serializers.ModelSerializer):
         if not request or not request.user.has_perm('crm.manage_inventory_documents'):
             fields.pop('purchase_price')
         return fields
+
+    def validate(self, attrs):
+        if self.instance and any(key in attrs for key in ('opening_quantity', 'opening_warehouse')):
+            raise serializers.ValidationError('Boshlang‘ich qoldiq faqat yangi tovar uchun kiritiladi.')
+        if attrs.get('opening_quantity'):
+            if not attrs.get('opening_warehouse'):
+                raise serializers.ValidationError({'opening_warehouse': 'Omborni tanlang.'})
+            user = self.context['request'].user
+            if not user.has_perms(['crm.manage_inventory_documents', 'crm.add_document']):
+                raise serializers.ValidationError('Boshlang‘ich qoldiq kiritishga ruxsat yo‘q.')
+        return attrs
+
+    @transaction.atomic
+    def create(self, validated_data):
+        from crm.services import record_opening_stock
+        quantity = validated_data.pop('opening_quantity', Decimal('0'))
+        warehouse = validated_data.pop('opening_warehouse', None)
+        product = super().create(validated_data)
+        record_opening_stock(product, quantity, warehouse, self.context['request'].user)
+        return product
 
 
 class CategorySerializer(serializers.ModelSerializer):
@@ -132,7 +155,7 @@ class DocumentInputSerializer(serializers.Serializer):
             for field in ('buyer_name', 'buyer_phone'):
                 if not attrs.get(field):
                     raise serializers.ValidationError({field: 'Bu maydon majburiy.'})
-        elif attrs['kind'] != 'transfer' and not attrs.get('partner'):
+        elif attrs['kind'] not in ('transfer', 'opening') and not attrs.get('partner'):
             raise serializers.ValidationError({'partner': 'Hamkorni tanlang.'})
         ids = [line['product'].pk for line in attrs['lines']]
         if len(ids) != len(set(ids)):

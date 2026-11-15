@@ -17,7 +17,7 @@ def endpoints():
         ])
     for resource, body in [
         ('categories', {'name': 'Yangi kategoriya'}),
-        ('products', {'name': 'Yangi tovar', 'category': 1, 'unit': 'dona', 'sale_price': '15000.00', 'minimum_stock': '0', 'active': True}),
+        ('products', {'name': 'Yangi tovar', 'category': 1, 'unit': 'dona', 'purchase_price': '10000.00', 'sale_price': '15000.00', 'minimum_stock': '2', 'opening_quantity': '0', 'active': True}),
         ('partners', {'name': 'Ali Valiyev', 'kind': 'customer', 'phone': '+998901234567'}),
         ('documents', sale),
         ('payments', {'partner': 1, 'direction': 'in', 'amount': '50000.00', 'method': 'cash', 'notes': ''}),

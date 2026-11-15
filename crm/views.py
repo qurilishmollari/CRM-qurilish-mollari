@@ -1,4 +1,6 @@
 import csv
+import hashlib
+import json
 from decimal import Decimal
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required, permission_required
@@ -13,7 +15,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from .forms import CategoryForm, DocumentForm, ExpenseForm, LineFormSet, PartnerForm, PaymentForm, ProductForm, WarehouseForm, ProductDeleteForm
 from .models import Category, Document, Expense, Partner, Payment, Product, Stock, Warehouse
-from .services import post_document
+from .services import post_document, record_opening_stock
 from .permissions import allowed_document_kinds, visible_documents
 
 @login_required
@@ -47,6 +49,8 @@ def listing(request, section):
         from django.core.exceptions import PermissionDenied
         raise PermissionDenied
     qs = model.objects.all()
+    if section == 'products':
+        qs = qs.select_related('category').annotate(remaining=Sum('stock__quantity', default=0))
     if section == 'partners' and not request.user.has_perm('crm.manage_inventory_documents'):
         qs = qs.filter(kind=Partner.Kind.CUSTOMER)
         title = 'Mijozlar'
@@ -60,8 +64,13 @@ def listing(request, section):
     rows = []
     for obj in page:
         cells = [getattr(obj, f'get_{field}_display', lambda: getattr(obj, field))() for field in fields]
+        if section == 'products':
+            cells.append(obj.remaining)
         rows.append({'id': obj.pk, 'cells': cells})
-    return render(request, 'crm/list.html', {'title': title, 'section': section, 'headers': [model._meta.get_field(f).verbose_name for f in fields], 'rows': rows, 'page': page, 'q': query, 'can_add': request.user.has_perm(f'crm.add_{model._meta.model_name}'), 'can_delete_products': section == 'products' and request.user.has_perm('crm.delete_product'), 'can_delete_categories': section == 'categories' and request.user.has_perm('crm.delete_category')})
+    headers = [model._meta.get_field(f).verbose_name for f in fields]
+    if section == 'products':
+        headers.append('Jami ombor qoldig‘i')
+    return render(request, 'crm/list.html', {'title': title, 'section': section, 'headers': headers, 'rows': rows, 'page': page, 'q': query, 'can_add': request.user.has_perm(f'crm.add_{model._meta.model_name}'), 'can_delete_products': section == 'products' and request.user.has_perm('crm.delete_product'), 'can_delete_categories': section == 'categories' and request.user.has_perm('crm.delete_category')})
 
 
 @login_required
@@ -126,9 +135,16 @@ def create(request, section):
     if request.method == 'POST' and form.is_valid():
         obj = form.save(commit=False)
         if hasattr(obj, 'created_by_id'): obj.created_by = request.user
-        obj.save()
-        messages.success(request, 'Ma’lumot saqlandi.')
-        return redirect('listing', section=section)
+        try:
+            with transaction.atomic():
+                obj.save()
+                if section == 'products':
+                    record_opening_stock(obj, form.cleaned_data.get('opening_quantity'), form.cleaned_data.get('opening_warehouse'), request.user)
+        except ValidationError as exc:
+            form.add_error(None, exc.messages)
+        else:
+            messages.success(request, 'Ma’lumot saqlandi.')
+            return redirect('listing', section=section)
     return render(request, 'crm/form.html', {'form': form, 'title': f'{title} — yangi yozuv'})
 
 @login_required
@@ -148,8 +164,21 @@ def document_create(request):
     if request.method == 'POST' and form.is_valid() and formset.is_valid():
         try:
             with transaction.atomic():
+                # Serialize browser retries from this account before checking the token.
+                from django.contrib.auth import get_user_model
+                get_user_model().objects.select_for_update().get(pk=request.user.pk)
+                request_id = form.cleaned_data.get('submission_token')
+                fingerprint = hashlib.sha256(json.dumps({key: request.POST.getlist(key) for key in sorted(request.POST) if key != 'csrfmiddlewaretoken'}, sort_keys=True).encode()).hexdigest()
+                if request_id:
+                    existing = Document.objects.filter(api_request_id=request_id).first()
+                    if existing:
+                        if existing.created_by_id != request.user.pk or existing.api_request_hash != fingerprint:
+                            raise ValidationError('Bu yuborish kodi avval boshqa hujjat uchun ishlatilgan. Sahifani yangilang.')
+                        return redirect('document_detail', pk=existing.pk)
                 document = form.save(commit=False)
                 document.created_by = request.user
+                document.api_request_id = request_id
+                document.api_request_hash = fingerprint if request_id else ''
                 if not manager:
                     customers = Partner.objects.filter(kind=Partner.Kind.CUSTOMER, name__iexact=document.buyer_name, phone=document.buyer_phone)
                     document.partner = customers.first()
@@ -162,12 +191,13 @@ def document_create(request):
                 formset.save()
                 post_document(document.pk)
         except ValidationError as exc:
-            form.add_error(None, exc)
+            form.add_error(None, exc.messages)
         else:
             messages.success(request, 'Hujjat tasdiqlandi. Ombor qoldig‘i yangilandi.')
             return redirect('document_detail', pk=document.pk)
     prices = {str(p.pk): str(p.sale_price) for p in Product.objects.filter(active=True)}
-    return render(request, 'crm/form.html', {'form': form, 'formset': formset, 'product_prices': prices, 'title': 'Yangi savdo / ombor hujjati' if manager else 'Sotuv / tovar qaytarish'})
+    stocks = {f'{s.warehouse_id}:{s.product_id}': str(s.quantity) for s in Stock.objects.filter(product__active=True)}
+    return render(request, 'crm/form.html', {'form': form, 'formset': formset, 'product_prices': prices, 'product_stocks': stocks, 'title': 'Yangi savdo / ombor hujjati' if manager else 'Sotuv / tovar qaytarish'})
 
 @login_required
 @permission_required('crm.view_document', raise_exception=True)

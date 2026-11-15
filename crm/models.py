@@ -78,6 +78,7 @@ class Stock(models.Model):
 
 class Document(models.Model):
     class Kind(models.TextChoices):
+        OPENING = 'opening', 'Boshlang‘ich qoldiq'
         SALE = 'sale', 'Sotuv'
         PURCHASE = 'purchase', 'Xarid / kirim'
         TRANSFER = 'transfer', 'Omborlararo ko‘chirish'

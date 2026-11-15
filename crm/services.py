@@ -3,7 +3,7 @@ from decimal import Decimal
 from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.db.models import Sum
-from .models import Document, Product, Stock
+from .models import Document, DocumentLine, Product, Stock
 
 @transaction.atomic
 def post_document(document_id):
@@ -16,15 +16,25 @@ def post_document(document_id):
     lines = list(document.lines.select_related('product').order_by('product_id'))
     if not lines:
         raise ValidationError('Kamida bitta tovar kiriting.')
+    if document.kind not in Document.Kind.values:
+        raise ValidationError('Hujjat turi noto‘g‘ri.')
+    if document.destination_id and document.kind != Document.Kind.TRANSFER:
+        raise ValidationError('Qabul qiluvchi ombor faqat omborlararo ko‘chirish uchun tanlanadi.')
+    if document.original_id and document.kind != Document.Kind.RETURN:
+        raise ValidationError('Asl sotuv faqat qaytarish uchun tanlanadi.')
+    if document.kind in (Document.Kind.OPENING, Document.Kind.TRANSFER) and document.partner_id:
+        raise ValidationError('Bu hujjatda hamkor tanlanmaydi.')
     if document.kind == Document.Kind.TRANSFER:
         if not document.destination_id or document.destination_id == document.warehouse_id:
             raise ValidationError('Boshqa qabul qiluvchi omborni tanlang.')
-    else:
+    elif document.kind != Document.Kind.OPENING:
         if not document.partner_id:
             raise ValidationError('Hamkorni tanlang.')
         expected = 'supplier' if document.kind == Document.Kind.PURCHASE else 'customer'
         if document.partner.kind != expected:
             raise ValidationError('Hujjat uchun hamkor turi noto‘g‘ri.')
+    # Lock products before checking return history as well as changing stock.
+    products = {p.pk: p for p in Product.objects.select_for_update().filter(pk__in=[line.product_id for line in lines]).order_by('pk')}
     if document.kind == Document.Kind.RETURN:
         for line in lines:
             history = Document.objects.filter(partner=document.partner, warehouse=document.warehouse, posted=True)
@@ -48,7 +58,7 @@ def post_document(document_id):
             line.cost = source.cost
     for line in lines:
         line.full_clean()
-        product = Product.objects.select_for_update().get(pk=line.product_id)
+        product = products[line.product_id]
         stock, _ = Stock.objects.get_or_create(product=product, warehouse=document.warehouse)
         stock = Stock.objects.select_for_update().get(pk=stock.pk)
         outbound = document.kind in (Document.Kind.SALE, Document.Kind.TRANSFER)
@@ -58,11 +68,13 @@ def post_document(document_id):
             line.cost = line.price if document.kind == Document.Kind.PURCHASE else product.purchase_price
         line.save(update_fields=['cost'])
         stock.quantity += -line.quantity if outbound else line.quantity
+        stock.full_clean()
         stock.save(update_fields=['quantity'])
         if document.kind == Document.Kind.TRANSFER:
             target, _ = Stock.objects.get_or_create(product=product, warehouse=document.destination)
             target = Stock.objects.select_for_update().get(pk=target.pk)
             target.quantity += line.quantity
+            target.full_clean()
             target.save(update_fields=['quantity'])
         if document.kind == Document.Kind.PURCHASE:
             product.purchase_price = line.price
@@ -71,9 +83,22 @@ def post_document(document_id):
     document.save(update_fields=['posted'])
     return document
 
+
+@transaction.atomic
+def record_opening_stock(product, quantity, warehouse, user):
+    if not quantity:
+        return
+    if not user.has_perm('crm.manage_inventory_documents') or not user.has_perm('crm.add_document'):
+        raise ValidationError('Boshlang‘ich qoldiq kiritishga ruxsat yo‘q.')
+    if quantity < 0 or warehouse is None:
+        raise ValidationError('Miqdor musbat bo‘lishi va ombor tanlanishi kerak.')
+    document = Document.objects.create(kind=Document.Kind.OPENING, warehouse=warehouse, created_by=user)
+    DocumentLine.objects.create(document=document, product=product, quantity=quantity, price=product.purchase_price)
+    return post_document(document.pk)
+
 def partner_balance(partner):
     balance = Decimal('0')
-    for doc in Document.objects.filter(partner=partner, posted=True).prefetch_related('lines'):
+    for doc in Document.objects.filter(partner=partner, posted=True, kind__in=[Document.Kind.SALE, Document.Kind.PURCHASE, Document.Kind.RETURN]).prefetch_related('lines'):
         balance += -doc.total if doc.kind == Document.Kind.RETURN else doc.total
     for payment in partner.payment_set.all():
         settles = (partner.kind == 'customer' and payment.direction == 'in') or (partner.kind == 'supplier' and payment.direction == 'out')

@@ -13,6 +13,18 @@ class ProductAdmin(admin.ModelAdmin):
     search_fields = ['name', 'sku']
     list_filter = ['category', 'active']
 
+    def get_fields(self, request, obj=None):
+        fields = super().get_fields(request, obj)
+        if obj:
+            fields = [field for field in fields if field not in ('opening_quantity', 'opening_warehouse')]
+        return fields
+
+    def save_model(self, request, obj, form, change):
+        super().save_model(request, obj, form, change)
+        if not change:
+            from .services import record_opening_stock
+            record_opening_stock(obj, form.cleaned_data.get('opening_quantity'), form.cleaned_data.get('opening_warehouse'), request.user)
+
 @admin.register(Partner)
 class PartnerAdmin(admin.ModelAdmin):
     list_display = ['name', 'kind', 'phone']

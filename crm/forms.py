@@ -2,14 +2,18 @@ from django import forms
 from django.core import signing
 from django.forms import inlineformset_factory
 import re
+from uuid import uuid4
 from .models import Category, Document, DocumentLine, Expense, Partner, Payment, Product, Warehouse
 
 class DocumentForm(forms.ModelForm):
+    submission_token = forms.CharField(widget=forms.HiddenInput, required=False)
     class Meta:
         model = Document
         fields = ['kind', 'buyer_name', 'buyer_phone', 'partner', 'warehouse', 'destination', 'original', 'notes']
     def __init__(self, *args, user=None, **kwargs):
         super().__init__(*args, **kwargs)
+        if not self.is_bound:
+            self.initial['submission_token'] = signing.dumps(str(uuid4()), salt='crm.document.submit')
         self.fields['original'].queryset = Document.objects.filter(kind='sale', posted=True)
         if user is not None:
             from .permissions import allowed_document_kinds
@@ -30,6 +34,16 @@ class DocumentForm(forms.ModelForm):
         if phone and not re.fullmatch(r'\+?\d{9,15}', phone):
             raise forms.ValidationError('Telefon raqamini 9–15 ta raqam bilan kiriting, masalan +998901234567.')
         return phone
+
+    def clean_submission_token(self):
+        token = self.cleaned_data.get('submission_token')
+        if token:
+            try:
+                from uuid import UUID
+                return UUID(signing.loads(token, salt='crm.document.submit'))
+            except (signing.BadSignature, ValueError, TypeError):
+                raise forms.ValidationError('Sahifani yangilang va qayta yuboring.')
+        return None
 
 class ProductChoiceField(forms.ModelChoiceField):
     def label_from_instance(self, product):
@@ -58,6 +72,8 @@ class PartnerForm(forms.ModelForm):
         fields = ['name', 'kind', 'phone', 'address', 'notes']
 
 class ProductForm(forms.ModelForm):
+    opening_quantity = forms.DecimalField(label='Ombordagi boshlang‘ich miqdor', max_digits=18, decimal_places=3, min_value=0, required=False, initial=0)
+    opening_warehouse = forms.ModelChoiceField(label='Boshlang‘ich qoldiq ombori', queryset=Warehouse.objects.all(), required=False)
     sku = forms.CharField(label='Artikul', required=False, disabled=True)
     sku_token = forms.CharField(widget=forms.HiddenInput, required=False)
 
@@ -68,6 +84,10 @@ class ProductForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._sku_token_error = False
+        self.fields['minimum_stock'].help_text = 'Kam qoldiq ogohlantirishi chegarasi; ombordagi haqiqiy miqdor emas.'
+        if self.instance.pk:
+            self.fields.pop('opening_quantity')
+            self.fields.pop('opening_warehouse')
         if not self.instance.pk:
             self.fields['sku_token'].required = True
             if self.is_bound:
@@ -81,7 +101,13 @@ class ProductForm(forms.ModelForm):
             else:
                 self.initial['sku_token'] = signing.dumps(self.instance.sku, salt='crm.product.sku')
         self.initial['sku'] = self.instance.sku
-        self.order_fields(['name', 'sku', 'category', 'unit', 'purchase_price', 'sale_price', 'minimum_stock', 'active', 'sku_token'])
+        self.order_fields(['name', 'sku', 'category', 'unit', 'purchase_price', 'sale_price', 'opening_quantity', 'opening_warehouse', 'minimum_stock', 'active', 'sku_token'])
+
+    def clean(self):
+        data = super().clean()
+        if data.get('opening_quantity') and not data.get('opening_warehouse'):
+            self.add_error('opening_warehouse', 'Boshlang‘ich miqdor uchun omborni tanlang.')
+        return data
 
     def clean_sku_token(self):
         token = self.cleaned_data.get('sku_token', '')

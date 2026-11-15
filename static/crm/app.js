@@ -18,6 +18,7 @@ if (selection) {
 const lines = document.getElementById('lines');
 if (lines) {
   const prices = JSON.parse(document.getElementById('product-prices').textContent);
+  const stocks = JSON.parse(document.getElementById('product-stocks').textContent);
   const money = new Intl.NumberFormat('uz-UZ', {minimumFractionDigits: 2, maximumFractionDigits: 2});
   // Quantity has three decimal places, price two: calculate using integer units.
   const scaled = (value, places) => {
@@ -31,6 +32,14 @@ if (lines) {
       const product = row.querySelector('[name$="-product"]');
       const quantity = row.querySelector('[name$="-quantity"]');
       const price = row.querySelector('[name$="-price"]');
+      let hint = row.querySelector('.stock-hint');
+      if (!hint) {
+        hint = document.createElement('small');
+        hint.className = 'stock-hint muted';
+        product.after(hint);
+      }
+      const warehouse = document.getElementById('id_warehouse').value;
+      hint.textContent = product.value && warehouse ? 'Tanlangan ombordagi qoldiq: ' + (stocks[warehouse + ':' + product.value] ?? '0') : '';
       if (price.dataset.autoPrice === 'true') price.value = prices[product.value] ?? '';
       const deleted = row.querySelector('[name$="-DELETE"]').checked;
       const value = !product.value || deleted ? 0n : scaled(quantity.value, 3) * scaled(price.value, 2);
@@ -49,6 +58,7 @@ if (lines) {
     recalculate();
   });
   document.getElementById('id_kind').addEventListener('change', recalculate);
+  document.getElementById('id_warehouse').addEventListener('change', recalculate);
   document.getElementById('add-line').addEventListener('click', () => {
     const count = document.getElementById('id_lines-TOTAL_FORMS');
     const template = document.getElementById('empty-line');

@@ -12,6 +12,15 @@ Brauzerda interaktiv hujjatlar: `/api/docs/` (`/api/docs` ham ishlaydi). OpenAPI
 
 ## Kirish
 
+### Boshlang‘ich ombor qoldig‘i
+
+`minimum_stock` — kam qoldiq haqida ogohlantirish chegarasi. Bu maydon omborga tovar kiritmaydi.
+Admin yangi mahsulot yaratganda `POST products/` so‘roviga `opening_quantity` (masalan `"12.500"`)
+va `opening_warehouse` (ombor ID) qo‘shishi mumkin. Musbat miqdor uchun ombor majburiy.
+Mahsulot va `opening` turidagi tasdiqlangan boshlang‘ich qoldiq hujjati bitta tranzaksiyada yaratiladi.
+Bu kirim savdo daromadiga va hamkor qarziga qo‘shilmaydi. PATCH orqali boshlang‘ich qoldiqni qayta yozish mumkin emas.
+Mavjud mahsulotga qo‘shimcha tovar kelganda kirim hujjatini yarating. Sotuvdan oldin `GET stocks/?warehouse=<id>` orqali mavjud qoldiqni tekshiring.
+
 `POST auth/login/`
 
 ```json
