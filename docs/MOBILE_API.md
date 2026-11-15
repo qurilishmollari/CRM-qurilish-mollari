@@ -21,6 +21,68 @@ Mahsulot va `opening` turidagi tasdiqlangan boshlang‘ich qoldiq hujjati bitta 
 Bu kirim savdo daromadiga va hamkor qarziga qo‘shilmaydi. PATCH orqali boshlang‘ich qoldiqni qayta yozish mumkin emas.
 Mavjud mahsulotga qo‘shimcha tovar kelganda kirim hujjatini yarating. Sotuvdan oldin `GET stocks/?warehouse=<id>` orqali mavjud qoldiqni tekshiring.
 
+### Mahsulotlar bilan birga qoldiq olish
+
+`GET products/?warehouse=1&q=sement` yoki `GET products/5/?warehouse=1`.
+`warehouse` berilmasa `available_stock` barcha omborlar bo‘yicha hisoblanadi. Noto‘g‘ri yoki mavjud bo‘lmagan ombor ID uchun `400` qaytadi.
+
+```json
+{
+  "id": 5,
+  "name": "Sement",
+  "sku": "TOV-SERVER_YARATGAN_ARTIKUL",
+  "unit": "qop",
+  "sale_price": "60000.00",
+  "minimum_stock": "5.000",
+  "total_stock": "30.000",
+  "available_stock": "20.000",
+  "low_stock": false
+}
+```
+
+Bu mahsulot javobining bir qismi. Miqdorlar va narxlar JSONda o‘nlik satrlar sifatida qaytadi.
+`total_stock` — barcha omborlar jami; `available_stock` — tanlangan ombordagi miqdor;
+`low_stock` — `available_stock <= minimum_stock`. Qoldiqsiz mahsulot ham ro‘yxatda `0.000` bilan ko‘rinadi.
+Sotuvchi javobida xarid narxi berilmaydi. Narx va miqdor yakuniy tasdiqlashda serverda yana tekshiriladi.
+
+### Mavjud mahsulotga boshlang‘ich qoldiq yozish
+
+Admin `POST documents/` orqali quyidagini yuboradi. Har yangi operatsiya uchun yangi haqiqiy UUID yarating:
+
+```json
+{
+  "client_request_id": "71b7e5c7-2337-4290-ac73-adf843b1a68d",
+  "kind": "opening",
+  "warehouse": 1,
+  "lines": [{"product": 5, "quantity": "20.000"}]
+}
+```
+
+Hamkor tanlanmaydi. Narx yuborilmasa mahsulotning xarid narxi olinadi. Birinchi so‘rov `201`, ayni UUID va ayni JSON bilan qayta yuborish `200` qaytaradi; qoldiq ikkinchi marta oshmaydi. UUIDni boshqa JSON bilan ishlatish `409` beradi.
+`opening`, `purchase`, `transfer` faqat boshqaruvchi roliga ruxsat etiladi; sotuvchi uchun `403`.
+`opening` mavjud qoldiqqa qo‘shiladi, uni almashtirmaydi. Savdo va qarzdorlik hisobotiga ta’sir qilmaydi.
+
+### Tovarlarni tanlab o‘chirish
+
+`POST products/bulk-delete/`, `crm.delete_product` ruxsati talab qilinadi:
+
+```json
+{"products": [5, 6]}
+```
+
+`200` javobi:
+
+```json
+{"deleted": [5], "protected": [6]}
+```
+
+Ombor yoki hujjatga bog‘langan tovar saqlanadi. Mobil ilova `protected` IDlarni foydalanuvchiga ko‘rsatishi kerak.
+1–100 ta takrorlanmaydigan ID yuboring. IDlardan biri topilmasa yoki format noto‘g‘ri bo‘lsa `400` qaytadi va hech biri o‘chirilmaydi.
+Tasdiqlash oynasini mobil ilovada ko‘rsating; bu endpoint haqiqiy o‘chirishni bajaradi. Sotuvchi uchun `403`, tokensiz `401`.
+
+Interaktiv `/api/docs/` sahifasida yangi mahsulotni qoldiq bilan yaratish, boshlang‘ich kirim, xarid, ko‘chirish,
+sotuv va qaytarish uchun alohida namunalar mavjud. `/api/schema/` ushbu so‘rovlarning maydonlari va javob kodlarini beradi.
+
 `POST auth/login/`
 
 ```json

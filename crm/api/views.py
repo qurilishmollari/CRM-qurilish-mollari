@@ -3,14 +3,15 @@ import json
 from uuid import UUID
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import IntegrityError, transaction
-from django.db.models import Q
+from django.db.models import Q, Sum
 from django.db.models.deletion import ProtectedError
 from django.http import HttpResponse
 from django.utils import timezone
 from rest_framework import mixins, status, viewsets
 from rest_framework.authtoken.models import Token
+from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied, ValidationError
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
@@ -23,7 +24,7 @@ from crm.services import post_document
 from .auth import TOKEN_LIFETIME
 from .permissions import ModelPermissions
 from .serializers import (CategorySerializer, DocumentInputSerializer, DocumentSerializer, ExpenseSerializer,
-                          LoginSerializer, PartnerSerializer, PaymentSerializer, ProductSerializer,
+                          LoginSerializer, PartnerSerializer, PaymentSerializer, ProductSerializer, ProductBulkDeleteSerializer,
                           StockSerializer, WarehouseSerializer)
 
 
@@ -71,12 +72,44 @@ class ProductViewSet(viewsets.ModelViewSet):
     http_method_names = ['get', 'post', 'patch', 'delete', 'head', 'options']
     def get_queryset(self):
         qs = Product.objects.select_related('category').order_by('name', 'pk')
+        warehouse = self.request.query_params.get('warehouse')
+        stock_filter = Q()
+        if warehouse:
+            if not warehouse.isascii() or not warehouse.isdigit() or len(warehouse) > 18 or int(warehouse) < 1:
+                raise ValidationError({'warehouse': 'Musbat ombor ID kiriting.'})
+            if not Warehouse.objects.filter(pk=warehouse).exists():
+                raise ValidationError({'warehouse': 'Ombor topilmadi.'})
+            stock_filter = Q(stock__warehouse_id=warehouse)
+        qs = qs.annotate(total_stock=Sum('stock__quantity', default=0), available_stock=Sum('stock__quantity', filter=stock_filter, default=0))
         if not self.request.user.has_perm('crm.change_product'):
             qs = qs.filter(active=True)
         q = self.request.query_params.get('q', '')
         if q:
             qs = qs.filter(Q(name__icontains=q) | Q(sku__icontains=q))
         return qs
+
+    @action(detail=False, methods=['post'], url_path='bulk-delete', permission_classes=[IsAuthenticated])
+    def bulk_delete(self, request):
+        if not request.user.has_perm('crm.delete_product'):
+            raise PermissionDenied()
+        serializer = ProductBulkDeleteSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        ids = serializer.validated_data['products']
+        deleted, protected = [], []
+        with transaction.atomic():
+            products = list(Product.objects.select_for_update().filter(pk__in=ids).order_by('pk'))
+            if len(products) != len(ids):
+                raise ValidationError({'products': 'Ayrim tovarlar topilmadi. Ro‘yxatni yangilang.'})
+            for product in products:
+                pk = product.pk
+                try:
+                    with transaction.atomic():
+                        product.delete()
+                except ProtectedError:
+                    protected.append(pk)
+                else:
+                    deleted.append(pk)
+        return Response({'deleted': deleted, 'protected': protected})
     def destroy(self, request, *args, **kwargs):
         try:
             return super().destroy(request, *args, **kwargs)
@@ -185,7 +218,8 @@ class DocumentViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, mixins.C
                 document = Document.objects.create(**data, created_by=request.user, api_request_id=request_id, api_request_hash=fingerprint)
                 for line in lines:
                     product = line['product']
-                    price = line.get('price', product.sale_price) if manager else product.sale_price
+                    default_price = product.purchase_price if data['kind'] == Document.Kind.OPENING else product.sale_price
+                    price = line.get('price', default_price) if manager else product.sale_price
                     DocumentLine.objects.create(document=document, product=product, quantity=line['quantity'], price=price)
                 post_document(document.pk)
                 document.refresh_from_db()

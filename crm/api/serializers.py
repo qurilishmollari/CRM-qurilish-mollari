@@ -26,12 +26,18 @@ class LoginSerializer(serializers.Serializer):
 
 
 class ProductSerializer(serializers.ModelSerializer):
+    total_stock = serializers.DecimalField(max_digits=24, decimal_places=3, read_only=True)
+    available_stock = serializers.DecimalField(max_digits=24, decimal_places=3, read_only=True)
+    low_stock = serializers.SerializerMethodField()
+
+    def get_low_stock(self, obj):
+        return getattr(obj, 'available_stock', Decimal('0')) <= obj.minimum_stock
     opening_quantity = serializers.DecimalField(max_digits=18, decimal_places=3, min_value=Decimal('0'), required=False, write_only=True)
     opening_warehouse = serializers.PrimaryKeyRelatedField(queryset=Warehouse.objects.all(), required=False, write_only=True)
     category_name = serializers.CharField(source='category.name', read_only=True)
     class Meta:
         model = Product
-        fields = ['id', 'name', 'sku', 'category', 'category_name', 'unit', 'purchase_price', 'sale_price', 'minimum_stock', 'active', 'opening_quantity', 'opening_warehouse']
+        fields = ['id', 'name', 'sku', 'category', 'category_name', 'unit', 'purchase_price', 'sale_price', 'minimum_stock', 'active', 'opening_quantity', 'opening_warehouse', 'total_stock', 'available_stock', 'low_stock']
         read_only_fields = ['id', 'sku']
 
     def get_fields(self):
@@ -59,7 +65,18 @@ class ProductSerializer(serializers.ModelSerializer):
         warehouse = validated_data.pop('opening_warehouse', None)
         product = super().create(validated_data)
         record_opening_stock(product, quantity, warehouse, self.context['request'].user)
+        product.total_stock = quantity
+        product.available_stock = quantity
         return product
+
+
+class ProductBulkDeleteSerializer(serializers.Serializer):
+    products = serializers.ListField(child=serializers.IntegerField(min_value=1, max_value=9223372036854775807), min_length=1, max_length=100)
+
+    def validate_products(self, value):
+        if len(value) != len(set(value)):
+            raise serializers.ValidationError('Tovar IDlari takrorlanmasin.')
+        return value
 
 
 class CategorySerializer(serializers.ModelSerializer):
